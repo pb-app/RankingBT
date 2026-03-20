@@ -265,6 +265,39 @@
             text-align: left;
             font-weight: bold;
         }
+        /* Estilos do Chaveamento (Mata-Mata) */
+        .bracket-container {
+            display: flex;
+            gap: 30px;
+            overflow-x: auto;
+            margin-top: 30px;
+            padding: 20px 0;
+            border-top: 3px dashed #ccc;
+        }
+        .bracket-round {
+            display: flex;
+            flex-direction: column;
+            justify-content: space-around;
+            min-width: 280px;
+            gap: 20px;
+        }
+        .bracket-round h4 {
+            text-align: center;
+            color: var(--white);
+            background-color: var(--dark);
+            padding: 10px;
+            border-radius: 5px;
+            margin-bottom: 10px;
+        }
+        .bracket-match {
+            background: var(--white);
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            padding: 15px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+            border-left: 5px solid var(--primary);
+            position: relative;
+        }
     </style>
 </head>
 <body>
@@ -355,7 +388,14 @@
                     <button id="btnGerarChaves" class="btn" style="width: 100%; background-color: var(--dark); color: var(--white);">
                         ⚙️ Gerar Chaves / Grupos
                     </button>
+                    
                     <div id="chavesGeradasUI" style="margin-top: 15px;"></div>
+
+                    <button id="btnMontarMataMata" class="btn hidden" style="width: 100%; margin-top: 20px; background-color: #ff9800; color: #fff;">
+                        ⚔️ Avançar Top 2 para o Mata-Mata
+                    </button>
+
+                    <div id="mataMataUI"></div>
                 </div>
             </div>
         </section>
@@ -806,6 +846,77 @@
         btnCancelCreate.addEventListener('click', () => { createSection.style.display = 'none'; form.reset(); });
 
         updateAuthUI();
+        // Faz o botão do Mata-Mata aparecer quando gera os grupos
+        document.getElementById('btnGerarChaves').addEventListener('click', () => {
+            // ... (o código que já existe aí de gerar grupos continua igual) ...
+            
+            // Depois de gerar os grupos, mostra o botão do Mata-Mata:
+            if (formatoAberto.includes("Grupos")) {
+                document.getElementById('btnMontarMataMata').classList.remove('hidden');
+            }
+        });
+
+        // --- LÓGICA DE PUXAR OS CLASSIFICADOS E MONTAR O MATA-MATA ---
+        document.getElementById('btnMontarMataMata').addEventListener('click', () => {
+            const mataMataUI = document.getElementById('mataMataUI');
+            let classificados = [];
+
+            // 1. Vasculha a tela procurando as tabelas de classificação de todos os grupos
+            const tabelas = document.querySelectorAll('.standings-table tbody');
+            
+            if (tabelas.length === 0) {
+                alert("Você precisa Atualizar a Classificação dos grupos antes de gerar o Mata-Mata!");
+                return;
+            }
+
+            // 2. Pega o 1º e o 2º colocado de CADA tabela
+            tabelas.forEach(tbody => {
+                let linhas = tbody.querySelectorAll('tr');
+                
+                if(linhas[0]) {
+                    // Pega o nome e tira o emoji de medalha (🥇)
+                    classificados.push(linhas[0].cells[0].innerText.replace('🥇 ', '').trim());
+                }
+                if(linhas[1]) {
+                    // Pega o nome e tira o emoji de medalha (🥈)
+                    classificados.push(linhas[1].cells[0].innerText.replace('🥈 ', '').trim());
+                }
+            });
+
+            if (classificados.length < 2) {
+                alert("Não há times suficientes classificados!");
+                return;
+            }
+
+            // 3. Monta o visual das Chaves
+            // Para simplificar, estamos cruzando aleatoriamente (Sorteio das Quartas/Semis)
+            classificados.sort(() => Math.random() - 0.5);
+
+            let htmlMataMata = '<div class="bracket-container">';
+            htmlMataMata += '<div class="bracket-round"><h4>Fase Eliminatória</h4>';
+            
+            for (let i = 0; i < classificados.length; i += 2) {
+                let timeA = classificados[i];
+                let timeB = classificados[i+1] || "<em>Avança Direto (BYE)</em>"; // Se sobrar ímpar
+                
+                htmlMataMata += `
+                    <div class="bracket-match">
+                        <strong style="color: var(--primary-dark);">${timeA}</strong>
+                        ${gerarInputsPlacar(setsAberto)}
+                        <strong style="color: var(--dark);">${timeB}</strong>
+                        <br>
+                        <button onclick="salvarPlacar(this, '${timeA}', '${timeB}')" class="btn btn-outline" style="padding: 0.3rem 1rem; font-size: 0.8rem; margin-top: 10px;">💾 Salvar Placar</button>
+                    </div>
+                `;
+            }
+            
+            htmlMataMata += '</div></div>';
+            
+            mataMataUI.innerHTML = htmlMataMata;
+            
+            // Rola a tela para baixo para o organizador ver as chaves
+            mataMataUI.scrollIntoView({ behavior: 'smooth' });
+        });
     </script>
 </body>
 </html>
