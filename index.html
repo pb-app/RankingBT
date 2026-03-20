@@ -343,7 +343,7 @@
         let isLogged = false;
         let torneioAbertoId = null; 
         let formatoAberto = ""; 
-        let setsAberto = ""; // <-- AGORA O SISTEMA GRAVA OS SETS
+        let setsAberto = ""; 
         let inscritosUnsubscribe = null; 
         let inscritosAtuais = []; 
 
@@ -356,7 +356,6 @@
         const btnCancelCreate = document.getElementById('btnCancelCreate');
         const form = document.getElementById('tournament-form');
         const tournamentsContainer = document.getElementById('tournaments-container');
-
         const listSection = document.getElementById('list-section');
         const detailsSection = document.getElementById('details-section');
         const btnVoltar = document.getElementById('btnVoltar');
@@ -376,20 +375,16 @@
 
         // --- LENDO TORNEIOS EM TEMPO REAL ---
         const q = query(collection(db, "campeonatos"), orderBy("dataCriacao", "desc"));
-        
         onSnapshot(q, (snapshot) => {
             tournamentsContainer.innerHTML = ''; 
-            
             if (snapshot.empty) {
                 tournamentsContainer.innerHTML = '<p>Nenhum campeonato aberto no momento.</p>';
                 return;
             }
-
             snapshot.forEach((doc) => {
                 const camp = doc.data();
                 const card = document.createElement('div');
                 card.className = 'tournament-card';
-                // Adicionamos camp.sets aqui para passar a informação pra tela de detalhes
                 card.onclick = () => abrirPainelTorneio(doc.id, camp.nome, camp.formato, camp.sets);
                 
                 card.innerHTML = `
@@ -402,19 +397,15 @@
             });
         });
 
-        // --- NAVEGAÇÃO DO PAINEL DE TORNEIO ---
         function abrirPainelTorneio(id, nome, formato, sets) {
             torneioAbertoId = id; 
             formatoAberto = formato; 
-            setsAberto = sets || ""; // Salva a info dos sets para usarmos no sorteio
-            
+            setsAberto = sets || ""; 
             tituloDetalhe.textContent = nome;
             formatoDetalhe.textContent = `Formato: ${formato}`;
-            
             listSection.classList.add('hidden');
             createSection.style.display = 'none';
             detailsSection.classList.remove('hidden');
-
             document.getElementById('chavesGeradasUI').innerHTML = ''; 
             carregarInscritos(id);
         }
@@ -429,19 +420,16 @@
         function carregarInscritos(torneioId) {
             const listaUI = document.getElementById('listaInscritosUI');
             listaUI.innerHTML = 'Carregando...';
-
             const inscritosRef = collection(db, "campeonatos", torneioId, "inscritos");
             const qInscritos = query(inscritosRef, orderBy("dataCriacao", "asc"));
 
             inscritosUnsubscribe = onSnapshot(qInscritos, (snapshot) => {
                 listaUI.innerHTML = ''; 
                 inscritosAtuais = []; 
-                
                 if(snapshot.empty) {
                     listaUI.innerHTML = '<li style="background: transparent; border: none; color: var(--gray);">Nenhum inscrito ainda.</li>';
                     return;
                 }
-
                 snapshot.forEach((docSnap) => {
                     const dados = docSnap.data();
                     inscritosAtuais.push(dados); 
@@ -480,45 +468,83 @@
             }
         });
 
-        // --- FUNÇÃO INTELIGENTE PARA GERAR OS PLACARES ---
         function gerarInputsPlacar(formatoSets) {
             if (formatoSets && formatoSets.includes("Melhor de 3")) {
-                // Retorna 3 linhas de placar se for melhor de 3
                 return `
                     <div style="display: flex; flex-direction: column; align-items: center; gap: 5px; margin: 10px 0;">
                         <div style="display: flex; align-items: center; gap: 10px;">
                             <span style="font-size: 0.8rem; width: 45px; text-align: right; color: var(--gray);">1º Set</span>
-                            <input type="number" class="score-input" min="0" placeholder="0" style="padding: 4px; width: 45px;"> 
+                            <input type="number" class="score-input p-timeA" min="0" placeholder="0" style="padding: 4px; width: 45px;"> 
                             <span style="color: var(--gray); font-weight: bold;">X</span> 
-                            <input type="number" class="score-input" min="0" placeholder="0" style="padding: 4px; width: 45px;">
+                            <input type="number" class="score-input p-timeB" min="0" placeholder="0" style="padding: 4px; width: 45px;">
                         </div>
                         <div style="display: flex; align-items: center; gap: 10px;">
                             <span style="font-size: 0.8rem; width: 45px; text-align: right; color: var(--gray);">2º Set</span>
-                            <input type="number" class="score-input" min="0" placeholder="0" style="padding: 4px; width: 45px;"> 
+                            <input type="number" class="score-input p-timeA" min="0" placeholder="0" style="padding: 4px; width: 45px;"> 
                             <span style="color: var(--gray); font-weight: bold;">X</span> 
-                            <input type="number" class="score-input" min="0" placeholder="0" style="padding: 4px; width: 45px;">
+                            <input type="number" class="score-input p-timeB" min="0" placeholder="0" style="padding: 4px; width: 45px;">
                         </div>
                         <div style="display: flex; align-items: center; gap: 10px;">
                             <span style="font-size: 0.8rem; width: 45px; text-align: right; color: var(--gray);">Tie</span>
-                            <input type="number" class="score-input" min="0" placeholder="0" style="padding: 4px; width: 45px;"> 
+                            <input type="number" class="score-input p-timeA" min="0" placeholder="0" style="padding: 4px; width: 45px;"> 
                             <span style="color: var(--gray); font-weight: bold;">X</span> 
-                            <input type="number" class="score-input" min="0" placeholder="0" style="padding: 4px; width: 45px;">
+                            <input type="number" class="score-input p-timeB" min="0" placeholder="0" style="padding: 4px; width: 45px;">
                         </div>
                     </div>
                 `;
             } else {
-                // Retorna só 1 linha de placar (Padrão 1 Set ou Set Pro)
                 return `
                     <div class="match-score">
-                        <input type="number" class="score-input" min="0" placeholder="0"> 
+                        <input type="number" class="score-input p-timeA" min="0" placeholder="0"> 
                         <span style="color: var(--gray); font-weight: bold;">X</span> 
-                        <input type="number" class="score-input" min="0" placeholder="0">
+                        <input type="number" class="score-input p-timeB" min="0" placeholder="0">
                     </div>
                 `;
             }
         }
 
-        // --- GERADOR DE CHAVES ---
+        // --- NOVA FUNÇÃO GLOBAL: SALVAR O PLACAR NO FIREBASE ---
+        window.salvarPlacar = async function(botao, timeA, timeB) {
+            // 1. Acha a caixinha do jogo que foi clicada
+            const matchBox = botao.closest('.match-box');
+            
+            // 2. Pega os valores digitados (Time A e Time B)
+            const inputsA = matchBox.querySelectorAll('.p-timeA');
+            const inputsB = matchBox.querySelectorAll('.p-timeB');
+            
+            let placaresTimeA = [];
+            let placaresTimeB = [];
+            
+            inputsA.forEach(inp => placaresTimeA.push(inp.value || "0"));
+            inputsB.forEach(inp => placaresTimeB.push(inp.value || "0"));
+
+            botao.textContent = 'Salvando...';
+            botao.disabled = true;
+
+            try {
+                // 3. Salva no Firebase na nova coleção "jogos" dentro deste torneio
+                await addDoc(collection(db, "campeonatos", torneioAbertoId, "jogos"), {
+                    timeA: timeA,
+                    timeB: timeB,
+                    placarA: placaresTimeA,
+                    placarB: placaresTimeB,
+                    dataRegistro: serverTimestamp()
+                });
+                
+                // 4. Dá o feedback visual verdinho
+                botao.textContent = '✅ Salvo!';
+                botao.style.backgroundColor = 'var(--primary)';
+                botao.style.color = 'var(--white)';
+                botao.style.border = 'none';
+            } catch(e) {
+                console.error(e);
+                alert("Erro ao salvar no banco. Verifique a conexão.");
+                botao.textContent = '💾 Salvar Placar';
+                botao.disabled = false;
+            }
+        };
+
+        // --- GERADOR DE CHAVES ATUALIZADO ---
         document.getElementById('btnGerarChaves').addEventListener('click', () => {
             const chavesUI = document.getElementById('chavesGeradasUI');
             if (inscritosAtuais.length < 2) { alert("É preciso ter pelo menos 2 inscrições para gerar os jogos!"); return; }
@@ -543,13 +569,14 @@
                             let timeA = grupo[i].jogador2 ? `${grupo[i].jogador1} & ${grupo[i].jogador2}` : grupo[i].jogador1;
                             let timeB = grupo[j].jogador2 ? `${grupo[j].jogador1} & ${grupo[j].jogador2}` : grupo[j].jogador1;
 
+                            // ADICIONADO O ONCLICK AQUI NO BOTÃO:
                             htmlJogos += `
                                 <div class="match-box">
                                     <strong style="color: var(--primary-dark);">${timeA}</strong>
                                     ${gerarInputsPlacar(setsAberto)}
                                     <strong style="color: var(--dark);">${timeB}</strong>
                                     <br>
-                                    <button class="btn btn-outline" style="padding: 0.3rem 1rem; font-size: 0.8rem; margin-top: 10px;">💾 Salvar Placar</button>
+                                    <button onclick="salvarPlacar(this, '${timeA}', '${timeB}')" class="btn btn-outline" style="padding: 0.3rem 1rem; font-size: 0.8rem; margin-top: 10px;">💾 Salvar Placar</button>
                                 </div>`;
                         }
                     }
@@ -563,13 +590,14 @@
                     
                     if (sorteados[i+1]) {
                         let timeB = sorteados[i+1].jogador2 ? `${sorteados[i+1].jogador1} & ${sorteados[i+1].jogador2}` : sorteados[i+1].jogador1;
+                        // ADICIONADO O ONCLICK AQUI NO BOTÃO:
                         htmlJogos += `
                             <div class="match-box">
                                 <strong style="color: var(--primary-dark);">${timeA}</strong>
                                 ${gerarInputsPlacar(setsAberto)}
                                 <strong style="color: var(--dark);">${timeB}</strong>
                                 <br>
-                                <button class="btn btn-outline" style="padding: 0.3rem 1rem; font-size: 0.8rem; margin-top: 10px;">💾 Salvar Placar</button>
+                                <button onclick="salvarPlacar(this, '${timeA}', '${timeB}')" class="btn btn-outline" style="padding: 0.3rem 1rem; font-size: 0.8rem; margin-top: 10px;">💾 Salvar Placar</button>
                             </div>`;
                     } else {
                         htmlJogos += `
@@ -583,7 +611,6 @@
             chavesUI.innerHTML = htmlJogos;
         });
 
-        // --- SALVAR NOVO CAMPEONATO ---
         form.addEventListener('submit', async (e) => {
             e.preventDefault();
             const btnSubmit = form.querySelector('button[type="submit"]');
@@ -598,7 +625,6 @@
                     sets: document.getElementById('qtdSets').options[document.getElementById('qtdSets').selectedIndex].text,
                     dataCriacao: serverTimestamp()
                 };
-
                 await addDoc(collection(db, "campeonatos"), novoCamp);
                 form.reset();
                 createSection.style.display = 'none';
