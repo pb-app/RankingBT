@@ -172,7 +172,8 @@
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
-        import { getFirestore, collection, addDoc, onSnapshot, query, orderBy, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
+        // --- ATUALIZADO: Importações novas (doc, updateDoc, setDoc, getDocs) para poder ler e salvar o estado do torneio ---
+        import { getFirestore, collection, addDoc, onSnapshot, query, orderBy, serverTimestamp, doc, updateDoc, getDocs, setDoc } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
 
         const firebaseConfig = {
               apiKey: "AIzaSyAxR4s-2QfbKS0mmzsx_bUPQcJ0f5kykZQ",
@@ -186,14 +187,18 @@
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
 
+        // --- VARIÁVEIS GLOBAIS DE ESTADO ---
         let isLogged = false;
         let torneioAbertoId = null; 
+        let torneioAbertoData = null; // Guarda tudo do torneio atual
         let formatoAberto = ""; 
         let setsAberto = ""; 
         let inscritosUnsubscribe = null; 
         let inscritosAtuais = []; 
         window.fasesMataMata = []; 
+        let jogosSalvos = {}; // Memória para preencher os placares que vêm do banco
 
+        // Elementos DOM
         const btnLogin = document.getElementById('btnLogin');
         const btnLogout = document.getElementById('btnLogout');
         const userMenu = document.getElementById('user-menu');
@@ -212,29 +217,49 @@
             }
         }
 
+        // Lê Torneios
         const q = query(collection(db, "campeonatos"), orderBy("dataCriacao", "desc"));
         onSnapshot(q, (snapshot) => {
             tournamentsContainer.innerHTML = ''; 
             if (snapshot.empty) { tournamentsContainer.innerHTML = '<p>Nenhum campeonato aberto.</p>'; return; }
-            snapshot.forEach((doc) => {
-                const camp = doc.data();
+            snapshot.forEach((docSnap) => {
+                const camp = docSnap.data();
                 const card = document.createElement('div');
                 card.className = 'tournament-card';
-                card.onclick = () => abrirPainelTorneio(doc.id, camp.nome, camp.formato, camp.sets);
+                // Passa o objeto "camp" inteiro para a função de abrir
+                card.onclick = () => abrirPainelTorneio(docSnap.id, camp);
                 card.innerHTML = `<h3>${camp.nome}</h3><p>Ranking: ${camp.ranking}</p><p>Formato: ${camp.formato}</p><span class="badge">🎾 ${camp.sets}</span>`;
                 tournamentsContainer.appendChild(card);
             });
         });
 
-        function abrirPainelTorneio(id, nome, formato, sets) {
-            torneioAbertoId = id; formatoAberto = formato; setsAberto = sets || ""; 
-            document.getElementById('detalhe-nome-torneio').textContent = nome;
-            document.getElementById('detalhe-formato-torneio').textContent = `Formato: ${formato}`;
+        // --- NOVA LÓGICA DE ABRIR O PAINEL: CARREGA O QUE FOI SALVO ---
+        function abrirPainelTorneio(id, camp) {
+            torneioAbertoId = id; 
+            torneioAbertoData = camp;
+            formatoAberto = camp.formato; 
+            setsAberto = camp.sets || ""; 
+            
+            document.getElementById('detalhe-nome-torneio').textContent = camp.nome;
+            document.getElementById('detalhe-formato-torneio').textContent = `Formato: ${camp.formato}`;
             listSection.classList.add('hidden'); createSection.style.display = 'none'; detailsSection.classList.remove('hidden');
+            
             document.getElementById('chavesGeradasUI').innerHTML = ''; 
             document.getElementById('mataMataUI').innerHTML = '';
             document.getElementById('btnMontarMataMata').classList.add('hidden');
+            
             carregarInscritos(id);
+
+            // Busca os placares e depois remonta a tela se já tiver sorteio salvo
+            carregarJogosSalvos(id).then(() => {
+                if (camp.sorteados && camp.sorteados.length > 0) {
+                    renderizarGrupos(camp.sorteados);
+                }
+                if (camp.fasesMataMata && camp.fasesMataMata.length > 0) {
+                    window.fasesMataMata = camp.fasesMataMata;
+                    renderizarMataMata(window.fasesMataMata);
+                }
+            });
         }
 
         document.getElementById('btnVoltar').addEventListener('click', () => {
@@ -242,6 +267,16 @@
             if (inscritosUnsubscribe) inscritosUnsubscribe();
         });
 
+        // Busca placares no Firebase
+        async function carregarJogosSalvos(id) {
+            jogosSalvos = {};
+            const snap = await getDocs(collection(db, "campeonatos", id, "jogos"));
+            snap.forEach(docSnap => {
+                jogosSalvos[docSnap.id] = docSnap.data();
+            });
+        }
+
+        // Inscritos
         function carregarInscritos(torneioId) {
             const listaUI = document.getElementById('listaInscritosUI');
             listaUI.innerHTML = 'Carregando...';
@@ -270,32 +305,29 @@
             finally { document.getElementById('btnAddInscrito').disabled = false; }
         });
 
-        // --- ATUALIZADO: Adicionado 'oninput' para liberar o botão ao digitar ---
-        function gerarInputsPlacar(formatoSets) {
+        // Utilitário de Placares que já injeta os números salvos no visual!
+        function gerarInputsPlacar(formatoSets, matchId) {
+            let dados = jogosSalvos[matchId] || { placarA: [], placarB: [] };
+
             if (formatoSets && formatoSets.includes("Melhor de 3")) {
                 return `
                     <div style="display: flex; flex-direction: column; align-items: center; gap: 5px; margin: 10px 0;">
-                        ${[1, 2, 3].map(set => `
+                        ${[1, 2, 3].map((set, i) => `
                         <div style="display: flex; align-items: center; gap: 10px;">
                             <span style="font-size: 0.8rem; width: 45px; color: var(--gray);">${set===3 ? 'Tie' : set+'º Set'}</span>
-                            <input type="number" class="score-input p-timeA" min="0" oninput="liberarBotaoSalvar(this)"> 
+                            <input type="number" class="score-input p-timeA" min="0" oninput="liberarBotaoSalvar(this)" value="${dados.placarA[i] !== undefined ? dados.placarA[i] : ''}"> 
                             <span style="font-weight: bold;">X</span> 
-                            <input type="number" class="score-input p-timeB" min="0" oninput="liberarBotaoSalvar(this)">
+                            <input type="number" class="score-input p-timeB" min="0" oninput="liberarBotaoSalvar(this)" value="${dados.placarB[i] !== undefined ? dados.placarB[i] : ''}">
                         </div>`).join('')}
                     </div>`;
             } else {
-                return `<div class="match-score"><input type="number" class="score-input p-timeA" min="0" oninput="liberarBotaoSalvar(this)"> <span>X</span> <input type="number" class="score-input p-timeB" min="0" oninput="liberarBotaoSalvar(this)"></div>`;
+                return `<div class="match-score"><input type="number" class="score-input p-timeA" min="0" oninput="liberarBotaoSalvar(this)" value="${dados.placarA[0] !== undefined ? dados.placarA[0] : ''}"> <span>X</span> <input type="number" class="score-input p-timeB" min="0" oninput="liberarBotaoSalvar(this)" value="${dados.placarB[0] !== undefined ? dados.placarB[0] : ''}"></div>`;
             }
         }
 
-        // --- NOVA FUNÇÃO: Libera o botão se a pessoa digitar algo novo ---
         window.liberarBotaoSalvar = function(inputElement) {
             const matchBox = inputElement.closest('.match-box') || inputElement.closest('.bracket-match');
-            
-            // Se a fase já foi encerrada (cadeado ativado), não deixa alterar nada
-            if (matchBox.classList.contains('fase-encerrada')) {
-                return;
-            }
+            if (matchBox.classList.contains('fase-encerrada')) return;
 
             const btn = matchBox.querySelector('button');
             if (btn && btn.textContent === '✅ Salvo!') {
@@ -308,6 +340,7 @@
             }
         };
 
+        // --- SALVAR PLACAR (AGORA ELE ATUALIZA O MESMO JOGO EM VEZ DE DUPLICAR) ---
         window.salvarPlacar = async function(botao, timeA, timeB) {
             const matchBox = botao.closest('.match-box') || botao.closest('.bracket-match');
             const isMataMata = matchBox.classList.contains('mata-mata-match');
@@ -325,16 +358,23 @@
             if (sA > sB || (sA === sB && gA > gB)) vencedor = timeA;
             else if (sB > sA || (sB === sA && gB > gA)) vencedor = timeB;
 
+            // Cria um ID único para esse jogo (ex: Ageu&Driele_vs_Joao&Maria)
+            let matchId = timeA.replace(/\s+/g, '') + "_vs_" + timeB.replace(/\s+/g, '');
+
             botao.textContent = 'Salvando...'; botao.disabled = true;
 
             try {
-                await addDoc(collection(db, "campeonatos", torneioAbertoId, "jogos"), {
-                    timeA, timeB, placarA: pA, placarB: pB, vencedor, fase: isMataMata ? "Eliminatória" : "Grupos", dataRegistro: serverTimestamp()
-                });
+                let dadosDoJogo = { timeA, timeB, placarA: pA, placarB: pB, vencedor, fase: isMataMata ? "Eliminatória" : "Grupos", dataRegistro: serverTimestamp() };
+                
+                // setDoc sobrescreve ou cria, evitando duplicatas!
+                await setDoc(doc(db, "campeonatos", torneioAbertoId, "jogos", matchId), dadosDoJogo);
+                
+                jogosSalvos[matchId] = dadosDoJogo; // Atualiza memória rápida
+
                 botao.textContent = '✅ Salvo!'; botao.style.background = 'var(--primary)'; botao.style.color = '#fff'; botao.style.border = 'none';
+                matchBox.classList.add('resolvido');
 
                 if (isMataMata && vencedor !== "") {
-                    matchBox.classList.add('resolvido');
                     avancarVencedorMataMata();
                 }
             } catch(e) { alert("Erro."); botao.textContent = '💾 Salvar Placar'; botao.disabled = false; }
@@ -371,28 +411,19 @@
 
             let classif = Object.values(stats).sort((a,b) => b.v !== a.v ? b.v - a.v : (b.ss !== a.ss ? b.ss - a.ss : b.sg - a.sg));
             
-            let htmlTab = `
-                <table class="standings-table">
-                    <thead>
-                        <tr><th>Dupla</th><th>J</th><th>V</th><th>SS</th><th>SG</th></tr>
-                    </thead>
-                    <tbody>
-            `;
-            
+            let htmlTab = `<table class="standings-table"><thead><tr><th>Dupla</th><th>J</th><th>V</th><th>SS</th><th>SG</th></tr></thead><tbody>`;
             classif.forEach((t, i) => {
                 let icone = i === 0 ? '🥇 ' : (i === 1 ? '🥈 ' : '');
                 htmlTab += `<tr><td>${icone}${t.nome}</td><td>${t.j}</td><td><strong>${t.v}</strong></td><td>${t.ss}</td><td>${t.sg}</td></tr>`;
             });
-            
             htmlTab += `</tbody></table>`;
             tabelaContainer.innerHTML = htmlTab;
             botao.textContent = '🔄 Atualizar Classificação';
         };
 
-        document.getElementById('btnGerarChaves').addEventListener('click', () => {
+        // --- FUNÇÃO PARA RENDERIZAR GRUPOS APÓS SORTEIO ---
+        function renderizarGrupos(sorteados) {
             const chavesUI = document.getElementById('chavesGeradasUI');
-            if (inscritosAtuais.length < 2) return;
-            const sorteados = [...inscritosAtuais].sort(() => Math.random() - 0.5);
             let html = '';
 
             if (formatoAberto.includes("Grupos")) {
@@ -406,18 +437,74 @@
                         for (let j = i + 1; j < grupo.length; j++) {
                             let tA = grupo[i].jogador2 ? `${grupo[i].jogador1} & ${grupo[i].jogador2}` : grupo[i].jogador1;
                             let tB = grupo[j].jogador2 ? `${grupo[j].jogador1} & ${grupo[j].jogador2}` : grupo[j].jogador1;
-                            html += `<div class="match-box"><strong style="color: var(--primary-dark);">${tA}</strong>${gerarInputsPlacar(setsAberto)}<strong style="color: var(--dark);">${tB}</strong><br><button onclick="salvarPlacar(this, '${tA}', '${tB}')" class="btn btn-outline" style="margin-top: 10px;">💾 Salvar Placar</button></div>`;
+                            let matchId = tA.replace(/\s+/g, '') + "_vs_" + tB.replace(/\s+/g, '');
+                            
+                            let isResolvido = jogosSalvos[matchId] ? 'resolvido' : '';
+                            let btnStyle = jogosSalvos[matchId] ? 'background: var(--primary); color: #fff; border: none;' : 'background: transparent; color: var(--primary); border: 1px solid var(--primary);';
+                            let btnText = jogosSalvos[matchId] ? '✅ Salvo!' : '💾 Salvar Placar';
+
+                            html += `<div class="match-box ${isResolvido}"><strong class="t-a" style="color: var(--primary-dark);">${tA}</strong>${gerarInputsPlacar(setsAberto, matchId)}<strong class="t-b" style="color: var(--dark);">${tB}</strong><br><button onclick="salvarPlacar(this, '${tA}', '${tB}')" class="btn" style="${btnStyle}; margin-top: 10px;">${btnText}</button></div>`;
                         }
                     }
                     html += `<div class="tabela-container"></div></div>`;
                 });
                 document.getElementById('btnMontarMataMata').classList.remove('hidden');
-            } else {
-                html += '<h4>⚔️ Mata-Mata Apenas</h4>';
-            }
+            } else { html += '<h4>⚔️ Mata-Mata Apenas</h4>'; }
+            
             chavesUI.innerHTML = html;
+
+            // Se tem mata mata já criado, trava a edição dos grupos
+            if (torneioAbertoData.fasesMataMata && torneioAbertoData.fasesMataMata.length > 0) {
+                travarGrupos();
+            }
+
+            // Simula clique rápido para mostrar as tabelas caso já tenham jogos
+            setTimeout(() => {
+                document.querySelectorAll('.tabela-container').forEach(container => {
+                    let btn = container.parentElement.querySelector('h5 button');
+                    if(btn) btn.click();
+                });
+            }, 500);
+        }
+
+        function travarGrupos() {
+            document.querySelectorAll('#chavesGeradasUI .match-box').forEach(box => {
+                box.classList.add('fase-encerrada');
+                box.querySelectorAll('input').forEach(inp => inp.disabled = true);
+                box.querySelectorAll('button').forEach(b => {
+                    b.disabled = true;
+                    if (b.textContent !== '✅ Salvo!') { b.textContent = '🔒 Fechado'; b.style.border = 'none'; b.style.background = '#eee'; b.style.color = '#888'; }
+                });
+            });
+        }
+
+        // --- CLIQUE PARA GERAR CHAVES: AGORA SALVA NO FIREBASE ---
+        document.getElementById('btnGerarChaves').addEventListener('click', async () => {
+            if (inscritosAtuais.length < 2) return;
+            
+            // Aviso de segurança se já houver torneio em andamento
+            if (torneioAbertoData.sorteados && torneioAbertoData.sorteados.length > 0) {
+                if (!confirm("O torneio já foi sorteado! Gerar novamente vai APAGAR e misturar o chaveamento. Tem certeza?")) return;
+            }
+
+            const sorteados = [...inscritosAtuais].sort(() => Math.random() - 0.5);
+            
+            document.getElementById('btnGerarChaves').textContent = "Gerando e Salvando...";
+            
+            // Salva as chaves no banco!
+            await updateDoc(doc(db, "campeonatos", torneioAbertoId), { sorteados: sorteados, fasesMataMata: [] });
+            
+            torneioAbertoData.sorteados = sorteados;
+            torneioAbertoData.fasesMataMata = [];
+            window.fasesMataMata = [];
+            jogosSalvos = {}; // Limpa memória local
+
+            renderizarGrupos(sorteados);
+            document.getElementById('mataMataUI').innerHTML = '';
+            document.getElementById('btnGerarChaves').innerHTML = "⚙️ Gerar Chaves / Grupos";
         });
 
+        // --- RENDERIZAR MATA MATA ---
         function renderizarMataMata(fasesArray) {
             const mataMataUI = document.getElementById('mataMataUI');
             let html = '<div class="bracket-container">';
@@ -429,24 +516,29 @@
                 rodada.forEach(jogo => {
                     let tA = jogo.timeA || "Aguardando...", tB = jogo.timeB || "Aguardando...";
                     let hideBtn = (tA.includes("Aguardando") || tB.includes("Aguardando")) ? "hidden" : "";
+                    let matchId = tA.replace(/\s+/g, '') + "_vs_" + tB.replace(/\s+/g, '');
                     
+                    let isResolvido = jogosSalvos[matchId] ? 'resolvido' : '';
+                    let btnStyle = jogosSalvos[matchId] ? 'background: var(--primary); color: #fff; border: none;' : 'background: transparent; color: var(--primary); border: 1px solid var(--primary);';
+                    let btnText = jogosSalvos[matchId] ? '✅ Salvo!' : '💾 Salvar Placar';
+
                     html += `
-                        <div class="bracket-match mata-mata-match">
+                        <div class="bracket-match mata-mata-match ${isResolvido}">
                             <strong class="t-a" style="color: var(--primary-dark);">${tA}</strong>
-                            ${gerarInputsPlacar(setsAberto)}
+                            ${gerarInputsPlacar(setsAberto, matchId)}
                             <strong class="t-b" style="color: var(--dark);">${tB}</strong>
                             <br>
-                            <button onclick="salvarPlacar(this, '${tA}', '${tB}')" class="btn btn-outline ${hideBtn}" style="margin-top:10px;">💾 Salvar Placar</button>
+                            <button onclick="salvarPlacar(this, '${tA}', '${tB}')" class="btn ${hideBtn}" style="${btnStyle}; margin-top:10px;">${btnText}</button>
                         </div>`;
                 });
                 html += '</div>';
             });
             
             mataMataUI.innerHTML = html + '</div>';
-            mataMataUI.scrollIntoView({ behavior: 'smooth' });
         }
 
-        window.avancarVencedorMataMata = function() {
+        // --- AVANÇAR VENCEDOR: AGORA SALVA NO FIREBASE ---
+        window.avancarVencedorMataMata = async function() {
             const rounds = document.querySelectorAll('.bracket-round');
             
             rounds.forEach((round, roundIndex) => {
@@ -456,33 +548,27 @@
                     let iA = jogo.querySelectorAll('.p-timeA'), iB = jogo.querySelectorAll('.p-timeB');
                     let gA=0, gB=0, sA=0, sB=0;
                     
-                    iA.forEach((inp, i) => { 
-                        let va=parseInt(inp.value)||0, vb=parseInt(iB[i].value)||0; 
-                        gA+=va; gB+=vb; 
-                        if(va>vb) sA++; if(vb>va) sB++; 
-                    });
-                    
+                    iA.forEach((inp, i) => { let va=parseInt(inp.value)||0, vb=parseInt(iB[i].value)||0; gA+=va; gB+=vb; if(va>vb) sA++; if(vb>va) sB++; });
                     vencedores.push((sA>sB || (sA===sB && gA>gB)) ? tA : tB);
                 });
 
                 if (window.fasesMataMata[roundIndex + 1] && vencedores.length > 0) {
                     let iv = 0;
                     window.fasesMataMata[roundIndex + 1].forEach(pJogo => {
-                        if (!pJogo.timeA || pJogo.timeA.includes("Aguardando")) {
-                            if(vencedores[iv]) { pJogo.timeA = vencedores[iv]; iv++; }
-                        }
-                        if (!pJogo.timeB || pJogo.timeB.includes("Aguardando")) {
-                            if(vencedores[iv]) { pJogo.timeB = vencedores[iv]; iv++; }
-                        }
+                        if (!pJogo.timeA || pJogo.timeA.includes("Aguardando")) { if(vencedores[iv]) { pJogo.timeA = vencedores[iv]; iv++; } }
+                        if (!pJogo.timeB || pJogo.timeB.includes("Aguardando")) { if(vencedores[iv]) { pJogo.timeB = vencedores[iv]; iv++; } }
                     });
-                    renderizarMataMata(window.fasesMataMata);
                 }
             });
+            
+            // Salva o funil no banco para não perder se atualizar a página
+            await updateDoc(doc(db, "campeonatos", torneioAbertoId), { fasesMataMata: window.fasesMataMata });
+            renderizarMataMata(window.fasesMataMata);
         };
 
-        document.getElementById('btnMontarMataMata').addEventListener('click', () => {
+        // --- GERAR MATA-MATA (SALVA NO BANCO) ---
+        document.getElementById('btnMontarMataMata').addEventListener('click', async () => {
             let classif = [];
-            
             document.querySelectorAll('.standings-table tbody').forEach(tb => {
                 let trs = tb.querySelectorAll('tr');
                 if(trs.length > 0) classif.push(trs[0].cells[0].innerText.replace('🥇', '').trim());
@@ -491,41 +577,32 @@
 
             if (classif.length < 2) { alert("Atualize as classificações dos grupos primeiro!"); return; }
 
-            // --- NOVO: Travar a edição dos grupos ao avançar para o Mata-Mata ---
-            document.querySelectorAll('#chavesGeradasUI .match-box').forEach(box => {
-                box.classList.add('fase-encerrada');
-                box.querySelectorAll('input').forEach(inp => inp.disabled = true);
-                box.querySelectorAll('button').forEach(b => {
-                    b.disabled = true;
-                    if (b.textContent !== '✅ Salvo!') {
-                        b.textContent = '🔒 Fechado';
-                        b.style.border = 'none';
-                        b.style.background = '#eee';
-                        b.style.color = '#888';
-                    }
-                });
-            });
+            if (torneioAbertoData.fasesMataMata && torneioAbertoData.fasesMataMata.length > 0) {
+                if(!confirm("O Mata-Mata já foi gerado! Quer sortear e sobrescrever?")) return;
+            }
 
+            travarGrupos(); // Trava a edição
             classif.sort(() => Math.random() - 0.5); 
             
             window.fasesMataMata = [];
             let totalJogos = Math.ceil(classif.length / 2);
             
             let rod1 = [];
-            for (let i=0; i<classif.length; i+=2) {
-                rod1.push({ timeA: classif[i], timeB: classif[i+1] || "Avança Direto (BYE)" });
-            }
+            for (let i=0; i<classif.length; i+=2) { rod1.push({ timeA: classif[i], timeB: classif[i+1] || "Avança Direto (BYE)" }); }
             window.fasesMataMata.push(rod1);
 
             let prox = Math.floor(totalJogos / 2);
             while (prox >= 1) {
-                let rN = []; 
-                for(let i=0; i<prox; i++) rN.push({ timeA: null, timeB: null });
-                window.fasesMataMata.push(rN);
-                prox = Math.floor(prox / 2);
+                let rN = []; for(let i=0; i<prox; i++) rN.push({ timeA: null, timeB: null });
+                window.fasesMataMata.push(rN); prox = Math.floor(prox / 2);
             }
             
+            // Salva as chaves no banco!
+            await updateDoc(doc(db, "campeonatos", torneioAbertoId), { fasesMataMata: window.fasesMataMata });
+            torneioAbertoData.fasesMataMata = window.fasesMataMata;
+            
             renderizarMataMata(window.fasesMataMata);
+            document.getElementById('mataMataUI').scrollIntoView({ behavior: 'smooth' });
         });
 
         form.addEventListener('submit', async (e) => {
