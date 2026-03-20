@@ -93,6 +93,13 @@
             padding: 1.5rem;
             box-shadow: 0 4px 6px rgba(0,0,0,0.05);
             border-left: 5px solid var(--primary);
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+
+        .tournament-card:hover {
+            transform: translateY(-5px);
+            border-color: var(--primary-dark);
         }
 
         .tournament-card h3 {
@@ -121,7 +128,7 @@
             padding: 2rem;
             border-radius: 10px;
             box-shadow: 0 4px 6px rgba(0,0,0,0.05);
-            display: none; /* Escondido por padrão */
+            display: none; 
             margin-bottom: 2rem;
         }
 
@@ -152,6 +159,7 @@
         .hidden {
             display: none !important;
         }
+
         /* Tela de Detalhes do Campeonato */
         #details-section {
             background-color: var(--white);
@@ -185,16 +193,6 @@
             margin-bottom: 0.5rem;
             border-radius: 5px;
             border-left: 3px solid var(--primary);
-        }
-        
-        /* Modificador para o card ser clicável */
-        .tournament-card {
-            cursor: pointer;
-            transition: transform 0.2s;
-        }
-        .tournament-card:hover {
-            transform: translateY(-5px);
-            border-color: var(--primary-dark);
         }
     </style>
 </head>
@@ -257,8 +255,9 @@
         <section id="list-section">
             <h2 class="section-title">Campeonatos Abertos</h2>
             <div class="tournaments-grid" id="tournaments-container">
-                </div>
+            </div>
         </section>
+
         <section id="details-section" class="hidden">
             <button id="btnVoltar" class="btn btn-outline" style="margin-bottom: 1rem;">⬅ Voltar para a Lista</button>
             
@@ -274,7 +273,7 @@
                         <button id="btnAddInscrito" class="btn" style="margin-top: 10px; width: 100%;">Adicionar Inscrição</button>
                     </div>
                     <ul class="lista-inscritos" id="listaInscritosUI">
-                        </ul>
+                    </ul>
                 </div>
 
                 <div class="panel-card">
@@ -286,18 +285,15 @@
                         ⚙️ Gerar Chaves / Grupos
                     </button>
                     <div id="chavesGeradasUI" style="margin-top: 15px;"></div>
-                    </button>
                 </div>
             </div>
         </section>
     </main>
 
     <script type="module">
-        // 1. Importando os módulos do Firebase (Versão Modular V9+)
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
         import { getFirestore, collection, addDoc, onSnapshot, query, orderBy, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
 
-        // 2. SUA CONFIGURAÇÃO DO FIREBASE (Você precisa substituir esses dados depois!)
         const firebaseConfig = {
               apiKey: "AIzaSyAxR4s-2QfbKS0mmzsx_bUPQcJ0f5kykZQ",
               authDomain: "rankingbt-b48ed.firebaseapp.com",
@@ -307,12 +303,14 @@
               appId: "1:363658176994:web:11d677bfdfc12cb0c5f1bb",
         };
 
-        // 3. Inicializando o Firebase e o Banco de Dados (Firestore)
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
 
         // --- ESTADO DA APLICAÇÃO ---
         let isLogged = false;
+        let torneioAbertoId = null; 
+        let inscritosUnsubscribe = null; 
+        let inscritosAtuais = []; 
 
         // --- ELEMENTOS DO DOM ---
         const btnLogin = document.getElementById('btnLogin');
@@ -323,6 +321,12 @@
         const btnCancelCreate = document.getElementById('btnCancelCreate');
         const form = document.getElementById('tournament-form');
         const tournamentsContainer = document.getElementById('tournaments-container');
+
+        const listSection = document.getElementById('list-section');
+        const detailsSection = document.getElementById('details-section');
+        const btnVoltar = document.getElementById('btnVoltar');
+        const tituloDetalhe = document.getElementById('detalhe-nome-torneio');
+        const formatoDetalhe = document.getElementById('detalhe-formato-torneio');
 
         // --- FUNÇÕES DE INTERFACE ---
         function updateAuthUI() {
@@ -336,16 +340,7 @@
             }
         }
 
-// --- ELEMENTOS DO PAINEL DE DETALHES ---
-        const listSection = document.getElementById('list-section');
-        const detailsSection = document.getElementById('details-section');
-        const btnVoltar = document.getElementById('btnVoltar');
-        const tituloDetalhe = document.getElementById('detalhe-nome-torneio');
-        const formatoDetalhe = document.getElementById('detalhe-formato-torneio');
-        
-        let torneioAbertoId = null; // Guarda o ID do torneio que estamos visualizando
-
-        // --- FIREBASE: LENDO OS DADOS EM TEMPO REAL ---
+        // --- LENDO TORNEIOS EM TEMPO REAL ---
         const q = query(collection(db, "campeonatos"), orderBy("dataCriacao", "desc"));
         
         onSnapshot(q, (snapshot) => {
@@ -360,7 +355,6 @@
                 const camp = doc.data();
                 const card = document.createElement('div');
                 card.className = 'tournament-card';
-                // Adicionamos a função de clique direto no card, passando os dados e a ID do Firebase (doc.id)
                 card.onclick = () => abrirPainelTorneio(doc.id, camp.nome, camp.formato);
                 
                 card.innerHTML = `
@@ -373,7 +367,7 @@
             });
         });
 
-        // --- FUNÇÕES DE NAVEGAÇÃO DO PAINEL ---
+        // --- NAVEGAÇÃO DO PAINEL DE TORNEIO ---
         function abrirPainelTorneio(id, nome, formato) {
             torneioAbertoId = id; 
             tituloDetalhe.textContent = nome;
@@ -383,11 +377,21 @@
             createSection.style.display = 'none';
             detailsSection.classList.remove('hidden');
 
-            // CHAMA A FUNÇÃO DE CARREGAR OS INSCRITOS DESTE TORNEIO:
+            document.getElementById('chavesGeradasUI').innerHTML = ''; // Limpa as chaves anteriores
             carregarInscritos(id);
-            let inscritosUnsubscribe = null;
-        let inscritosAtuais = []; // <-- NOVA VARIÁVEL AQUI
+        }
 
+        btnVoltar.addEventListener('click', () => {
+            torneioAbertoId = null;
+            detailsSection.classList.add('hidden');
+            listSection.classList.remove('hidden');
+
+            if (inscritosUnsubscribe) {
+                inscritosUnsubscribe();
+            }
+        });
+
+        // --- CARREGAR INSCRITOS ---
         function carregarInscritos(torneioId) {
             const listaUI = document.getElementById('listaInscritosUI');
             listaUI.innerHTML = 'Carregando...';
@@ -397,7 +401,7 @@
 
             inscritosUnsubscribe = onSnapshot(qInscritos, (snapshot) => {
                 listaUI.innerHTML = ''; 
-                inscritosAtuais = []; // <-- LIMPA A LISTA ANTES DE PREENCHER DE NOVO
+                inscritosAtuais = []; 
                 
                 if(snapshot.empty) {
                     listaUI.innerHTML = '<li style="background: transparent; border: none; color: var(--gray);">Nenhum inscrito ainda.</li>';
@@ -406,7 +410,7 @@
 
                 snapshot.forEach((docSnap) => {
                     const dados = docSnap.data();
-                    inscritosAtuais.push(dados); // <-- GUARDA OS DADOS PARA O SORTEIO
+                    inscritosAtuais.push(dados); 
                     
                     const li = document.createElement('li');
                     if (dados.jogador2) {
@@ -418,20 +422,75 @@
                 });
             });
         }
-        }
 
-        btnVoltar.addEventListener('click', () => {
-            torneioAbertoId = null;
-            detailsSection.classList.add('hidden');
-            listSection.classList.remove('hidden');
+        // --- ADICIONAR NOVA INSCRIÇÃO ---
+        document.getElementById('btnAddInscrito').addEventListener('click', async () => {
+            const j1 = document.getElementById('nomeJogador1').value.trim();
+            const j2 = document.getElementById('nomeJogador2').value.trim();
 
-            // DESLIGA O FIREBASE PARA ESSA LISTA DE INSCRITOS
-            if (inscritosUnsubscribe) {
-                inscritosUnsubscribe();
+            if (!j1) {
+                alert("Preencha pelo menos o nome do Jogador 1!");
+                return;
+            }
+
+            const btnAdd = document.getElementById('btnAddInscrito');
+            btnAdd.textContent = 'Salvando...';
+            btnAdd.disabled = true;
+
+            try {
+                await addDoc(collection(db, "campeonatos", torneioAbertoId, "inscritos"), {
+                    jogador1: j1,
+                    jogador2: j2,
+                    dataCriacao: serverTimestamp()
+                });
+
+                document.getElementById('nomeJogador1').value = '';
+                document.getElementById('nomeJogador2').value = '';
+            } catch (error) {
+                console.error("Erro ao inscrever:", error);
+                alert("Erro ao adicionar jogador.");
+            } finally {
+                btnAdd.textContent = 'Adicionar Inscrição';
+                btnAdd.disabled = false;
             }
         });
 
-        // --- FIREBASE: SALVANDO UM NOVO CAMPEONATO ---
+        // --- GERADOR DE CHAVES (SORTEIO MATA-MATA) ---
+        document.getElementById('btnGerarChaves').addEventListener('click', () => {
+            const chavesUI = document.getElementById('chavesGeradasUI');
+            
+            if (inscritosAtuais.length < 2) {
+                alert("É preciso ter pelo menos 2 inscrições (jogadores ou duplas) para gerar uma chave!");
+                return;
+            }
+
+            const sorteados = [...inscritosAtuais].sort(() => Math.random() - 0.5);
+
+            let htmlConfrontos = '<h4 style="margin-bottom: 10px; border-bottom: 1px solid #ccc; padding-bottom: 5px;">⚔️ 1ª Rodada (Sorteio)</h4>';
+            htmlConfrontos += '<ul class="lista-inscritos">';
+
+            for (let i = 0; i < sorteados.length; i += 2) {
+                let timeA = sorteados[i].jogador2 ? `${sorteados[i].jogador1} / ${sorteados[i].jogador2}` : sorteados[i].jogador1;
+                
+                let timeB = "<em>Avança direto (BYE)</em>";
+                if (sorteados[i+1]) {
+                    timeB = sorteados[i+1].jogador2 ? `${sorteados[i+1].jogador1} / ${sorteados[i+1].jogador2}` : sorteados[i+1].jogador1;
+                }
+
+                htmlConfrontos += `
+                    <li style="text-align: center; background-color: #f9f9f9; border-left: 4px solid var(--dark);">
+                        <span style="color: var(--primary-dark); font-weight: bold;">${timeA}</span>
+                        <div style="margin: 5px 0; font-size: 0.8rem; color: var(--gray);">VS</div>
+                        <span style="color: var(--dark); font-weight: bold;">${timeB}</span>
+                    </li>
+                `;
+            }
+
+            htmlConfrontos += '</ul>';
+            chavesUI.innerHTML = htmlConfrontos;
+        });
+
+        // --- SALVAR NOVO CAMPEONATO ---
         form.addEventListener('submit', async (e) => {
             e.preventDefault();
             const btnSubmit = form.querySelector('button[type="submit"]');
@@ -460,124 +519,13 @@
             }
         });
 
-        // --- EVENTOS DE BOTÕES SIMPLES ---
+        // --- EVENTOS DE LOGIN/LOGOUT SIMPLES ---
         btnLogin.addEventListener('click', () => { isLogged = true; updateAuthUI(); });
         btnLogout.addEventListener('click', () => { isLogged = false; updateAuthUI(); detailsSection.classList.add('hidden'); listSection.classList.remove('hidden'); });
         btnNewTournament.addEventListener('click', () => { createSection.style.display = 'block'; detailsSection.classList.add('hidden'); listSection.classList.remove('hidden'); });
         btnCancelCreate.addEventListener('click', () => { createSection.style.display = 'none'; form.reset(); });
 
         updateAuthUI();
-        // --- LÓGICA DE INSCRIÇÕES (JOGADORES INDIVIDUAIS/DUPLAS) ---
-        let inscritosUnsubscribe = null; // Variável para desligar a leitura quando sair da tela
-
-        function carregarInscritos(torneioId) {
-            // Limpa a lista na tela
-            const listaUI = document.getElementById('listaInscritosUI');
-            listaUI.innerHTML = 'Carregando...';
-
-            // Busca os inscritos apenas DENTRO do torneio específico
-            const inscritosRef = collection(db, "campeonatos", torneioId, "inscritos");
-            const qInscritos = query(inscritosRef, orderBy("dataCriacao", "asc"));
-
-            inscritosUnsubscribe = onSnapshot(qInscritos, (snapshot) => {
-                listaUI.innerHTML = ''; // Limpa antes de preencher
-                
-                if(snapshot.empty) {
-                    listaUI.innerHTML = '<li style="background: transparent; border: none; color: var(--gray);">Nenhum inscrito ainda.</li>';
-                    return;
-                }
-
-                snapshot.forEach((docSnap) => {
-                    const dados = docSnap.data();
-                    const li = document.createElement('li');
-                    
-                    // Se tiver jogador 2, mostra a dupla. Se não, mostra só o J1.
-                    if (dados.jogador2) {
-                        li.innerHTML = `🎾 <strong>${dados.jogador1}</strong> e <strong>${dados.jogador2}</strong>`;
-                    } else {
-                        li.innerHTML = `🎾 <strong>${dados.jogador1}</strong>`;
-                    }
-                    
-                    listaUI.appendChild(li);
-                });
-            });
-        }
-
-        // Evento de clicar no botão "Adicionar Inscrição"
-        document.getElementById('btnAddInscrito').addEventListener('click', async () => {
-            const j1 = document.getElementById('nomeJogador1').value.trim();
-            const j2 = document.getElementById('nomeJogador2').value.trim();
-
-            if (!j1) {
-                alert("Preencha pelo menos o nome do Jogador 1!");
-                return;
-            }
-
-            const btnAdd = document.getElementById('btnAddInscrito');
-            btnAdd.textContent = 'Salvando...';
-            btnAdd.disabled = true;
-
-            try {
-                // Salva no Firebase criando os campos individuais
-                await addDoc(collection(db, "campeonatos", torneioAbertoId, "inscritos"), {
-                    jogador1: j1,
-                    jogador2: j2,
-                    dataCriacao: serverTimestamp()
-                });
-
-                // Limpa os campos após salvar
-                document.getElementById('nomeJogador1').value = '';
-                document.getElementById('nomeJogador2').value = '';
-            } catch (error) {
-                console.error("Erro ao inscrever:", error);
-                alert("Erro ao adicionar jogador.");
-            } finally {
-                btnAdd.textContent = 'Adicionar Inscrição';
-                btnAdd.disabled = false;
-            }
-        });
-        // --- GERADOR DE CHAVES (SORTEIO MATA-MATA) ---
-        document.getElementById('btnGerarChaves').addEventListener('click', () => {
-            const chavesUI = document.getElementById('chavesGeradasUI');
-            
-            if (inscritosAtuais.length < 2) {
-                alert("É preciso ter pelo menos 2 inscrições (jogadores ou duplas) para gerar uma chave!");
-                return;
-            }
-
-            // 1. Embaralha a lista de inscritos aleatoriamente
-            const sorteados = [...inscritosAtuais].sort(() => Math.random() - 0.5);
-
-            // 2. Monta o visual dos confrontos
-            let htmlConfrontos = '<h4 style="margin-bottom: 10px; border-bottom: 1px solid #ccc; padding-bottom: 5px;">⚔️ 1ª Rodada (Sorteio)</h4>';
-            htmlConfrontos += '<ul class="lista-inscritos">';
-
-            for (let i = 0; i < sorteados.length; i += 2) {
-                // Formata o nome do Time A
-                let timeA = sorteados[i].jogador2 ? `${sorteados[i].jogador1} / ${sorteados[i].jogador2}` : sorteados[i].jogador1;
-                
-                // Formata o nome do Time B (ou dá vitória por W.O/Bye se for ímpar)
-                let timeB = "<em>Avança direto (BYE)</em>";
-                if (sorteados[i+1]) {
-                    timeB = sorteados[i+1].jogador2 ? `${sorteados[i+1].jogador1} / ${sorteados[i+1].jogador2}` : sorteados[i+1].jogador1;
-                }
-
-                htmlConfrontos += `
-                    <li style="text-align: center; background-color: #f9f9f9; border-left: 4px solid var(--dark);">
-                        <span style="color: var(--primary-dark); font-weight: bold;">${timeA}</span>
-                        <div style="margin: 5px 0; font-size: 0.8rem; color: var(--gray);">VS</div>
-                        <span style="color: var(--dark); font-weight: bold;">${timeB}</span>
-                    </li>
-                `;
-            }
-
-            htmlConfrontos += '</ul>';
-            
-            // 3. Joga na tela
-            chavesUI.innerHTML = htmlConfrontos;
-            
-            // (Opcional) Aqui futuramente você pode colocar um addDoc() para salvar esse sorteio no Firebase!
-        });
     </script>
 </body>
 </html>
