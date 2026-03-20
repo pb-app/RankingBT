@@ -217,25 +217,27 @@
         </section>
     </main>
 
-    <script>
+    <script type="module">
+        // 1. Importando os módulos do Firebase (Versão Modular V9+)
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
+        import { getFirestore, collection, addDoc, onSnapshot, query, orderBy, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
+
+        // 2. SUA CONFIGURAÇÃO DO FIREBASE (Você precisa substituir esses dados depois!)
+        const firebaseConfig = {
+            apiKey: "SUA_API_KEY",
+            authDomain: "SEU_PROJETO.firebaseapp.com",
+            projectId: "SEU_PROJETO",
+            storageBucket: "SEU_PROJETO.appspot.com",
+            messagingSenderId: "SEU_MESSAGING_ID",
+            appId: "SEU_APP_ID"
+        };
+
+        // 3. Inicializando o Firebase e o Banco de Dados (Firestore)
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+
         // --- ESTADO DA APLICAÇÃO ---
         let isLogged = false;
-        
-        // Dados simulados (No futuro virão do Firestore)
-        let campeonatos = [
-            {
-                nome: "Open de Verão - Duplas Fixas",
-                ranking: "Ranking Duplas Fixas",
-                formato: "Fase de Grupos + Mata-Mata",
-                sets: "1 Set (até 6 games)"
-            },
-            {
-                nome: "Rei da Praia 2026",
-                ranking: "Ranking Geral",
-                formato: "Apenas Mata-Mata",
-                sets: "1 Set Pro (até 8 games)"
-            }
-        ];
 
         // --- ELEMENTOS DO DOM ---
         const btnLogin = document.getElementById('btnLogin');
@@ -247,12 +249,31 @@
         const form = document.getElementById('tournament-form');
         const tournamentsContainer = document.getElementById('tournaments-container');
 
-        // --- FUNÇÕES ---
+        // --- FUNÇÕES DE INTERFACE ---
+        function updateAuthUI() {
+            if (isLogged) {
+                btnLogin.classList.add('hidden');
+                userMenu.classList.remove('hidden');
+            } else {
+                btnLogin.classList.remove('hidden');
+                userMenu.classList.add('hidden');
+                createSection.style.display = 'none';
+            }
+        }
 
-        // Renderiza a lista de torneios na tela
-        function renderTournaments() {
-            tournamentsContainer.innerHTML = '';
-            campeonatos.forEach(camp => {
+        // --- FIREBASE: LENDO OS DADOS EM TEMPO REAL ---
+        const q = query(collection(db, "campeonatos"), orderBy("dataCriacao", "desc"));
+        
+        onSnapshot(q, (snapshot) => {
+            tournamentsContainer.innerHTML = ''; // Limpa a tela
+            
+            if (snapshot.empty) {
+                tournamentsContainer.innerHTML = '<p>Nenhum campeonato aberto no momento.</p>';
+                return;
+            }
+
+            snapshot.forEach((doc) => {
+                const camp = doc.data();
                 const card = document.createElement('div');
                 card.className = 'tournament-card';
                 card.innerHTML = `
@@ -263,69 +284,51 @@
                 `;
                 tournamentsContainer.appendChild(card);
             });
-        }
-
-        // Atualiza a interface baseada no login
-        function updateAuthUI() {
-            if (isLogged) {
-                btnLogin.classList.add('hidden');
-                userMenu.classList.remove('hidden');
-            } else {
-                btnLogin.classList.remove('hidden');
-                userMenu.classList.add('hidden');
-                createSection.style.display = 'none'; // Esconde form se deslogar
-            }
-        }
-
-        // --- EVENTOS ---
-
-        // Simula Login
-        btnLogin.addEventListener('click', () => {
-            isLogged = true;
-            updateAuthUI();
         });
 
-        // Simula Logout
-        btnLogout.addEventListener('click', () => {
-            isLogged = false;
-            updateAuthUI();
-        });
-
-        // Mostra formulário de criação
-        btnNewTournament.addEventListener('click', () => {
-            createSection.style.display = 'block';
-        });
-
-        // Esconde formulário de criação
-        btnCancelCreate.addEventListener('click', () => {
-            createSection.style.display = 'none';
-            form.reset();
-        });
-
-        // Submissão do formulário (Criar Campeonato)
-        form.addEventListener('submit', (e) => {
+        // --- FIREBASE: SALVANDO UM NOVO CAMPEONATO ---
+        form.addEventListener('submit', async (e) => {
             e.preventDefault();
             
-            // Coleta os dados
-            const novoCamp = {
-                nome: document.getElementById('nomeTorneio').value,
-                ranking: document.getElementById('rankingVinculado').options[document.getElementById('rankingVinculado').selectedIndex].text,
-                formato: document.querySelector('input[name="formato"]:checked').parentElement.textContent.trim(),
-                sets: document.getElementById('qtdSets').options[document.getElementById('qtdSets').selectedIndex].text
-            };
+            const btnSubmit = form.querySelector('button[type="submit"]');
+            btnSubmit.textContent = 'Salvando...';
+            btnSubmit.disabled = true;
 
-            // Adiciona na lista e re-renderiza (Aqui entrará o código do Firestore)
-            campeonatos.unshift(novoCamp);
-            renderTournaments();
-            
-            // Limpa e esconde o form
-            form.reset();
-            createSection.style.display = 'none';
-            alert('Campeonato criado com sucesso!');
+            try {
+                // Prepara os dados do formulário
+                const novoCamp = {
+                    nome: document.getElementById('nomeTorneio').value,
+                    ranking: document.getElementById('rankingVinculado').options[document.getElementById('rankingVinculado').selectedIndex].text,
+                    formato: document.querySelector('input[name="formato"]:checked').parentElement.textContent.trim(),
+                    sets: document.getElementById('qtdSets').options[document.getElementById('qtdSets').selectedIndex].text,
+                    dataCriacao: serverTimestamp() // Salva a hora exata no servidor
+                };
+
+                // Envia para o Firestore
+                await addDoc(collection(db, "campeonatos"), novoCamp);
+                
+                // Limpa e esconde o form após sucesso
+                form.reset();
+                createSection.style.display = 'none';
+                alert('Campeonato criado com sucesso!');
+
+            } catch (error) {
+                console.error("Erro ao salvar:", error);
+                alert('Erro ao criar campeonato. Verifique as permissões do seu banco no Firebase.');
+            } finally {
+                btnSubmit.textContent = 'Salvar Campeonato';
+                btnSubmit.disabled = false;
+            }
         });
 
-        // --- INICIALIZAÇÃO ---
-        renderTournaments();
+        // --- EVENTOS DE BOTÕES SIMPLES ---
+        btnLogin.addEventListener('click', () => { isLogged = true; updateAuthUI(); });
+        btnLogout.addEventListener('click', () => { isLogged = false; updateAuthUI(); });
+        btnNewTournament.addEventListener('click', () => { createSection.style.display = 'block'; });
+        btnCancelCreate.addEventListener('click', () => { createSection.style.display = 'none'; form.reset(); });
+
+        // Inicializa a UI
+        updateAuthUI();
     </script>
 </body>
 </html>
