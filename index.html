@@ -269,8 +269,9 @@
                 <div class="panel-card">
                     <h3>👥 Gerenciar Inscritos</h3>
                     <div class="form-group" style="margin-top: 10px;">
-                        <input type="text" id="nomeInscrito" class="form-control" placeholder="Nome do Jogador ou Dupla">
-                        <button id="btnAddInscrito" class="btn" style="margin-top: 10px; width: 100%;">Adicionar à Lista</button>
+                        <input type="text" id="nomeJogador1" class="form-control" placeholder="Nome do Jogador 1 (Obrigatório)" style="margin-bottom: 8px;">
+                        <input type="text" id="nomeJogador2" class="form-control" placeholder="Nome do Jogador 2 (Deixe em branco se for Simples)">
+                        <button id="btnAddInscrito" class="btn" style="margin-top: 10px; width: 100%;">Adicionar Inscrição</button>
                     </div>
                     <ul class="lista-inscritos" id="listaInscritosUI">
                         </ul>
@@ -372,20 +373,27 @@
 
         // --- FUNÇÕES DE NAVEGAÇÃO DO PAINEL ---
         function abrirPainelTorneio(id, nome, formato) {
-            torneioAbertoId = id; // Salvamos qual torneio o usuário clicou
+            torneioAbertoId = id; 
             tituloDetalhe.textContent = nome;
             formatoDetalhe.textContent = `Formato: ${formato}`;
             
-            // Esconde a lista e o formulário de criação, mostra o painel
             listSection.classList.add('hidden');
             createSection.style.display = 'none';
             detailsSection.classList.remove('hidden');
+
+            // CHAMA A FUNÇÃO DE CARREGAR OS INSCRITOS DESTE TORNEIO:
+            carregarInscritos(id);
         }
 
         btnVoltar.addEventListener('click', () => {
             torneioAbertoId = null;
             detailsSection.classList.add('hidden');
             listSection.classList.remove('hidden');
+
+            // DESLIGA O FIREBASE PARA ESSA LISTA DE INSCRITOS
+            if (inscritosUnsubscribe) {
+                inscritosUnsubscribe();
+            }
         });
 
         // --- FIREBASE: SALVANDO UM NOVO CAMPEONATO ---
@@ -424,6 +432,75 @@
         btnCancelCreate.addEventListener('click', () => { createSection.style.display = 'none'; form.reset(); });
 
         updateAuthUI();
+        // --- LÓGICA DE INSCRIÇÕES (JOGADORES INDIVIDUAIS/DUPLAS) ---
+        let inscritosUnsubscribe = null; // Variável para desligar a leitura quando sair da tela
+
+        function carregarInscritos(torneioId) {
+            // Limpa a lista na tela
+            const listaUI = document.getElementById('listaInscritosUI');
+            listaUI.innerHTML = 'Carregando...';
+
+            // Busca os inscritos apenas DENTRO do torneio específico
+            const inscritosRef = collection(db, "campeonatos", torneioId, "inscritos");
+            const qInscritos = query(inscritosRef, orderBy("dataCriacao", "asc"));
+
+            inscritosUnsubscribe = onSnapshot(qInscritos, (snapshot) => {
+                listaUI.innerHTML = ''; // Limpa antes de preencher
+                
+                if(snapshot.empty) {
+                    listaUI.innerHTML = '<li style="background: transparent; border: none; color: var(--gray);">Nenhum inscrito ainda.</li>';
+                    return;
+                }
+
+                snapshot.forEach((docSnap) => {
+                    const dados = docSnap.data();
+                    const li = document.createElement('li');
+                    
+                    // Se tiver jogador 2, mostra a dupla. Se não, mostra só o J1.
+                    if (dados.jogador2) {
+                        li.innerHTML = `🎾 <strong>${dados.jogador1}</strong> e <strong>${dados.jogador2}</strong>`;
+                    } else {
+                        li.innerHTML = `🎾 <strong>${dados.jogador1}</strong>`;
+                    }
+                    
+                    listaUI.appendChild(li);
+                });
+            });
+        }
+
+        // Evento de clicar no botão "Adicionar Inscrição"
+        document.getElementById('btnAddInscrito').addEventListener('click', async () => {
+            const j1 = document.getElementById('nomeJogador1').value.trim();
+            const j2 = document.getElementById('nomeJogador2').value.trim();
+
+            if (!j1) {
+                alert("Preencha pelo menos o nome do Jogador 1!");
+                return;
+            }
+
+            const btnAdd = document.getElementById('btnAddInscrito');
+            btnAdd.textContent = 'Salvando...';
+            btnAdd.disabled = true;
+
+            try {
+                // Salva no Firebase criando os campos individuais
+                await addDoc(collection(db, "campeonatos", torneioAbertoId, "inscritos"), {
+                    jogador1: j1,
+                    jogador2: j2,
+                    dataCriacao: serverTimestamp()
+                });
+
+                // Limpa os campos após salvar
+                document.getElementById('nomeJogador1').value = '';
+                document.getElementById('nomeJogador2').value = '';
+            } catch (error) {
+                console.error("Erro ao inscrever:", error);
+                alert("Erro ao adicionar jogador.");
+            } finally {
+                btnAdd.textContent = 'Adicionar Inscrição';
+                btnAdd.disabled = false;
+            }
+        });
     </script>
 </body>
 </html>
