@@ -194,6 +194,39 @@
             border-radius: 5px;
             border-left: 3px solid var(--primary);
         }
+        /* Estilos para os Placares dos Jogos */
+        .match-box {
+            background-color: #f9f9f9;
+            padding: 15px;
+            margin: 10px 0;
+            border-radius: 8px;
+            text-align: center;
+            border: 1px solid #ddd;
+            border-left: 5px solid var(--primary-dark);
+        }
+
+        .match-score {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 15px;
+            margin: 10px 0;
+        }
+
+        .score-input {
+            width: 50px;
+            text-align: center;
+            padding: 8px;
+            font-size: 1.2rem;
+            border: 2px solid #ccc;
+            border-radius: 5px;
+            font-weight: bold;
+        }
+
+        .score-input:focus {
+            border-color: var(--primary);
+            outline: none;
+        }
     </style>
 </head>
 <body>
@@ -367,9 +400,13 @@
             });
         });
 
+        let formatoAberto = ""; // <-- NOVA VARIÁVEL AQUI
+
         // --- NAVEGAÇÃO DO PAINEL DE TORNEIO ---
         function abrirPainelTorneio(id, nome, formato) {
             torneioAbertoId = id; 
+            formatoAberto = formato; // Guarda se é grupo ou mata-mata
+            
             tituloDetalhe.textContent = nome;
             formatoDetalhe.textContent = `Formato: ${formato}`;
             
@@ -455,39 +492,90 @@
             }
         });
 
-        // --- GERADOR DE CHAVES (SORTEIO MATA-MATA) ---
+        // --- GERADOR DE CHAVES E GRUPOS ---
         document.getElementById('btnGerarChaves').addEventListener('click', () => {
             const chavesUI = document.getElementById('chavesGeradasUI');
             
             if (inscritosAtuais.length < 2) {
-                alert("É preciso ter pelo menos 2 inscrições (jogadores ou duplas) para gerar uma chave!");
+                alert("É preciso ter pelo menos 2 inscrições para gerar os jogos!");
                 return;
             }
 
+            // Embaralha a lista aleatoriamente
             const sorteados = [...inscritosAtuais].sort(() => Math.random() - 0.5);
+            let htmlJogos = '';
 
-            let htmlConfrontos = '<h4 style="margin-bottom: 10px; border-bottom: 1px solid #ccc; padding-bottom: 5px;">⚔️ 1ª Rodada (Sorteio)</h4>';
-            htmlConfrontos += '<ul class="lista-inscritos">';
-
-            for (let i = 0; i < sorteados.length; i += 2) {
-                let timeA = sorteados[i].jogador2 ? `${sorteados[i].jogador1} / ${sorteados[i].jogador2}` : sorteados[i].jogador1;
+            // VERIFICA O FORMATO DO TORNEIO
+            if (formatoAberto.includes("Grupos")) {
+                htmlJogos += '<h4 style="margin-bottom: 15px;">📊 Fase de Grupos</h4>';
                 
-                let timeB = "<em>Avança direto (BYE)</em>";
-                if (sorteados[i+1]) {
-                    timeB = sorteados[i+1].jogador2 ? `${sorteados[i+1].jogador1} / ${sorteados[i+1].jogador2}` : sorteados[i+1].jogador1;
+                // Divide em grupos de 3 (ou o mais próximo disso)
+                let grupos = [];
+                for (let i = 0; i < sorteados.length; i += 3) {
+                    grupos.push(sorteados.slice(i, i + 3));
                 }
 
-                htmlConfrontos += `
-                    <li style="text-align: center; background-color: #f9f9f9; border-left: 4px solid var(--dark);">
-                        <span style="color: var(--primary-dark); font-weight: bold;">${timeA}</span>
-                        <div style="margin: 5px 0; font-size: 0.8rem; color: var(--gray);">VS</div>
-                        <span style="color: var(--dark); font-weight: bold;">${timeB}</span>
-                    </li>
-                `;
+                grupos.forEach((grupo, index) => {
+                    const nomeGrupo = String.fromCharCode(65 + index); // Grupo A, B, C...
+                    htmlJogos += `<div style="margin-bottom: 20px;">
+                                    <h5 style="background: var(--dark); color: var(--white); padding: 5px 10px; border-radius: 5px;">Grupo ${nomeGrupo}</h5>`;
+                    
+                    // Gera os confrontos: Todos contra Todos dentro do grupo
+                    for (let i = 0; i < grupo.length; i++) {
+                        for (let j = i + 1; j < grupo.length; j++) {
+                            let timeA = grupo[i].jogador2 ? `${grupo[i].jogador1} & ${grupo[i].jogador2}` : grupo[i].jogador1;
+                            let timeB = grupo[j].jogador2 ? `${grupo[j].jogador1} & ${grupo[j].jogador2}` : grupo[j].jogador1;
+
+                            htmlJogos += `
+                                <div class="match-box">
+                                    <strong style="color: var(--primary-dark);">${timeA}</strong>
+                                    <div class="match-score">
+                                        <input type="number" class="score-input" min="0" placeholder="0"> 
+                                        <span style="color: var(--gray); font-weight: bold;">X</span> 
+                                        <input type="number" class="score-input" min="0" placeholder="0">
+                                    </div>
+                                    <strong style="color: var(--dark);">${timeB}</strong>
+                                    <br>
+                                    <button class="btn btn-outline" style="padding: 0.3rem 1rem; font-size: 0.8rem; margin-top: 10px;">💾 Salvar Placar</button>
+                                </div>`;
+                        }
+                    }
+                    htmlJogos += `</div>`;
+                });
+
+            } else {
+                // LÓGICA: APENAS MATA-MATA
+                htmlJogos += '<h4 style="margin-bottom: 15px;">⚔️ Mata-Mata (Sorteio Inicial)</h4>';
+                
+                for (let i = 0; i < sorteados.length; i += 2) {
+                    let timeA = sorteados[i].jogador2 ? `${sorteados[i].jogador1} & ${sorteados[i].jogador2}` : sorteados[i].jogador1;
+                    
+                    if (sorteados[i+1]) {
+                        let timeB = sorteados[i+1].jogador2 ? `${sorteados[i+1].jogador1} & ${sorteados[i+1].jogador2}` : sorteados[i+1].jogador1;
+                        htmlJogos += `
+                            <div class="match-box">
+                                <strong style="color: var(--primary-dark);">${timeA}</strong>
+                                <div class="match-score">
+                                    <input type="number" class="score-input" min="0" placeholder="0"> 
+                                    <span style="color: var(--gray); font-weight: bold;">X</span> 
+                                    <input type="number" class="score-input" min="0" placeholder="0">
+                                </div>
+                                <strong style="color: var(--dark);">${timeB}</strong>
+                                <br>
+                                <button class="btn btn-outline" style="padding: 0.3rem 1rem; font-size: 0.8rem; margin-top: 10px;">💾 Salvar Placar</button>
+                            </div>`;
+                    } else {
+                        // Sorteou ímpar, o último avança direto (BYE)
+                        htmlJogos += `
+                            <div class="match-box" style="border-left-color: #ccc;">
+                                <strong style="color: var(--primary-dark);">${timeA}</strong>
+                                <div style="margin: 10px 0; color: var(--gray);"><em>Avança direto para a próxima fase (BYE)</em></div>
+                            </div>`;
+                    }
+                }
             }
 
-            htmlConfrontos += '</ul>';
-            chavesUI.innerHTML = htmlConfrontos;
+            chavesUI.innerHTML = htmlJogos;
         });
 
         // --- SALVAR NOVO CAMPEONATO ---
