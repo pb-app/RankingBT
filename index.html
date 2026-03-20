@@ -326,7 +326,7 @@
 
         // --- TABELA DE GRUPOS ---
         window.atualizarClassificacao = async function(botao, nomeGrupo) {
-            const container = botao.closest('div');
+            const container = botao.closest('div'); // Corrigido para não pegar todos os grupos
             const tabelaContainer = container.querySelector('.tabela-container');
             const jogosBox = container.querySelectorAll('.match-box');
             botao.textContent = 'Calculando...';
@@ -356,9 +356,22 @@
 
             let classif = Object.values(stats).sort((a,b) => b.v !== a.v ? b.v - a.v : (b.ss !== a.ss ? b.ss - a.ss : b.sg - a.sg));
             
-            let htmlTab = `<table class="standings-table"><tr><th>Dupla</th><th>J</th><th>V</th><th>SS</th><th>SG</th></tr>`;
-            classif.forEach((t, i) => htmlTab += `<tr><td>${i===0?'🥇':i===1?'🥈':''}${t.nome}</td><td>${t.j}</td><td><strong>${t.v}</strong></td><td>${t.ss}</td><td>${t.sg}</td></tr>`);
-            tabelaContainer.innerHTML = htmlTab + `</table>`;
+            // CORREÇÃO AQUI: Separando thead de tbody para o robô não ler o cabeçalho
+            let htmlTab = `
+                <table class="standings-table">
+                    <thead>
+                        <tr><th>Dupla</th><th>J</th><th>V</th><th>SS</th><th>SG</th></tr>
+                    </thead>
+                    <tbody>
+            `;
+            
+            classif.forEach((t, i) => {
+                let icone = i === 0 ? '🥇 ' : (i === 1 ? '🥈 ' : '');
+                htmlTab += `<tr><td>${icone}${t.nome}</td><td>${t.j}</td><td><strong>${t.v}</strong></td><td>${t.ss}</td><td>${t.sg}</td></tr>`;
+            });
+            
+            htmlTab += `</tbody></table>`;
+            tabelaContainer.innerHTML = htmlTab;
             botao.textContent = '🔄 Atualizar Classificação';
         };
 
@@ -385,52 +398,33 @@
                     }
                     html += `<div class="tabela-container"></div></div>`;
                 });
-                document.getElementById('btnMontarMataMata').classList.remove('hidden');
-            } else {
-                html += '<h4>⚔️ Mata-Mata</h4>';
-                // Lógica simples de mata mata sem grupo para testes
-            }
-            chavesUI.innerHTML = html;
-        });
-
-        // --- INTELIGÊNCIA DO MATA-MATA (FUNIL E AVANÇO) ---
-        function renderizarMataMata(fasesArray) {
-            const mataMataUI = document.getElementById('mataMataUI');
-            let html = '<div class="bracket-container">';
-            fasesArray.forEach((rodada, rodadaIndex) => {
-                let nome = rodada.length === 4 ? "Quartas de Final" : (rodada.length === 2 ? "Semifinal" : (rodada.length === 1 ? "FINAL 🏆" : "Fase Eliminatória"));
-                html += `<div class="bracket-round"><h4>${nome}</h4>`;
-                rodada.forEach(jogo => {
-                    let tA = jogo.timeA || "Aguardando...", tB = jogo.timeB || "Aguardando...";
-                    let hideBtn = (tA.includes("Aguardando") || tB.includes("Aguardando")) ? "hidden" : "";
-                    html += `<div class="bracket-match mata-mata-match"><strong class="t-a" style="color: var(--primary-dark);">${tA}</strong>${gerarInputsPlacar(setsAberto)}<strong class="t-b" style="color: var(--dark);">${tB}</strong><br><button onclick="salvarPlacar(this, '${tA}', '${tB}')" class="btn btn-outline ${hideBtn}" style="margin-top:10px;">💾 Salvar Placar</button></div>`;
-                });
-                html += '</div>';
+                document.getElementById('btnMontarMataMata').addEventListener('click', () => {
+            let classif = [];
+            // Agora ele busca estritamente dentro do tbody (pulando o cabeçalho)
+            document.querySelectorAll('.standings-table tbody').forEach(tb => {
+                let trs = tb.querySelectorAll('tr');
+                if(trs[0]) classif.push(trs[0].cells[0].innerText.replace('🥇', '').trim());
+                if(trs[1]) classif.push(trs[1].cells[0].innerText.replace('🥈', '').trim());
             });
-            mataMataUI.innerHTML = html + '</div>';
-            mataMataUI.scrollIntoView({ behavior: 'smooth' });
-        }
 
-        window.avancarVencedorMataMata = function() {
-            const rounds = document.querySelectorAll('.bracket-round');
-            rounds.forEach((round, roundIndex) => {
-                let vencedores = [];
-                round.querySelectorAll('.mata-mata-match.resolvido').forEach(jogo => {
-                    let tA = jogo.querySelector('.t-a').innerText, tB = jogo.querySelector('.t-b').innerText;
-                    let iA = jogo.querySelectorAll('.p-timeA'), iB = jogo.querySelectorAll('.p-timeB');
-                    let gA=0, gB=0, sA=0, sB=0;
-                    iA.forEach((inp, i) => { let va=parseInt(inp.value)||0, vb=parseInt(iB[i].value)||0; gA+=va; gB+=vb; if(va>vb) sA++; if(vb>va) sB++; });
-                    vencedores.push((sA>sB || (sA===sB && gA>gB)) ? tA : tB);
-                });
+            if (classif.length < 2) { alert("Atualize as classificações dos grupos primeiro!"); return; }
 
-                if (window.fasesMataMata[roundIndex + 1] && vencedores.length > 0) {
-                    let iv = 0;
-                    window.fasesMataMata[roundIndex + 1].forEach(pJogo => {
-                        if (!pJogo.timeA || pJogo.timeA.includes("Aguardando")) pJogo.timeA = vencedores[iv++] || "Aguardando...";
-                        if (!pJogo.timeB || pJogo.timeB.includes("Aguardando")) pJogo.timeB = vencedores[iv++] || "Aguardando...";
-                    });
-                    renderizarMataMata(window.fasesMataMata);
-                }
+            classif.sort(() => Math.random() - 0.5);
+            window.fasesMataMata = [];
+            let totalJogos = Math.ceil(classif.length / 2);
+            
+            let rod1 = [];
+            for (let i=0; i<classif.length; i+=2) rod1.push({ timeA: classif[i], timeB: classif[i+1] || "Avança Direto (BYE)" });
+            window.fasesMataMata.push(rod1);
+
+            let prox = Math.floor(totalJogos / 2);
+            while (prox >= 1) {
+                let rN = []; for(let i=0; i<prox; i++) rN.push({ timeA: null, timeB: null });
+                window.fasesMataMata.push(rN);
+                prox = Math.floor(prox / 2);
+            }
+            renderizarMataMata(window.fasesMataMata);
+        });
             });
         };
 
