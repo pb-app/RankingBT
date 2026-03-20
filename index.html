@@ -326,7 +326,7 @@
 
         // --- TABELA DE GRUPOS ---
         window.atualizarClassificacao = async function(botao, nomeGrupo) {
-            const container = botao.closest('div').parentElement;
+            const container = botao.closest('div');
             const tabelaContainer = container.querySelector('.tabela-container');
             const jogosBox = container.querySelectorAll('.match-box');
             botao.textContent = 'Calculando...';
