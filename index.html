@@ -227,6 +227,44 @@
             border-color: var(--primary);
             outline: none;
         }
+        /* Estilos da Tabela de Classificação */
+        .standings-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 15px;
+            margin-bottom: 25px;
+            background-color: var(--white);
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        }
+
+        .standings-table th, .standings-table td {
+            padding: 10px;
+            text-align: center;
+            border-bottom: 1px solid #eee;
+        }
+
+        .standings-table th {
+            background-color: var(--dark);
+            color: var(--white);
+            font-size: 0.9rem;
+        }
+
+        .standings-table tr:last-child td {
+            border-bottom: none;
+        }
+
+        /* Destaca as duas primeiras posições (os que passam de fase) */
+        .standings-table tr:nth-child(1) td,
+        .standings-table tr:nth-child(2) td {
+            background-color: rgba(0, 210, 106, 0.1); /* Verde bem clarinho */
+        }
+        
+        .standings-table td:first-child {
+            text-align: left;
+            font-weight: bold;
+        }
     </style>
 </head>
 <body>
@@ -544,6 +582,121 @@
             }
         };
 
+       // --- FUNÇÃO PARA CALCULAR E MOSTRAR A TABELA DO GRUPO ---
+        window.atualizarClassificacao = async function(botao, nomeGrupo) {
+            // Pega a "caixa" principal deste grupo (onde estão os jogos e a tabela)
+            const grupoContainer = botao.closest('div');
+            const tabelaContainer = grupoContainer.querySelector('.tabela-container');
+            const jogosBox = grupoContainer.querySelectorAll('.match-box');
+            
+            botao.textContent = 'Calculando...';
+            
+            // 1. Objeto para guardar as estatísticas de cada time
+            let stats = {};
+
+            // 2. Lê todos os jogos deste grupo que estão na tela
+            jogosBox.forEach(box => {
+                const timeA = box.querySelector('strong:first-of-type').textContent;
+                const timeB = box.querySelector('strong:last-of-type').textContent;
+                
+                // Se o time ainda não existe no objeto de estatísticas, cria ele zerado
+                if (!stats[timeA]) stats[timeA] = { nome: timeA, jogos: 0, vitorias: 0, saldoSets: 0, saldoGames: 0 };
+                if (!stats[timeB]) stats[timeB] = { nome: timeB, jogos: 0, vitorias: 0, saldoSets: 0, saldoGames: 0 };
+
+                // Pega os inputs de placar deste jogo
+                const inputsA = box.querySelectorAll('.p-timeA');
+                const inputsB = box.querySelectorAll('.p-timeB');
+                
+                let gamesA = 0;
+                let gamesB = 0;
+                let setsGanhosA = 0;
+                let setsGanhosB = 0;
+                let jogoRealizado = false;
+
+                // Lê set por set
+                for (let i = 0; i < inputsA.length; i++) {
+                    let valA = parseInt(inputsA[i].value);
+                    let valB = parseInt(inputsB[i].value);
+
+                    if (!isNaN(valA) && !isNaN(valB)) {
+                        jogoRealizado = true;
+                        gamesA += valA;
+                        gamesB += valB;
+                        
+                        // Quem ganhou o set?
+                        if (valA > valB) setsGanhosA++;
+                        if (valB > valA) setsGanhosB++;
+                    }
+                }
+
+                // Se teve jogo, atualiza as estatísticas
+                if (jogoRealizado) {
+                    stats[timeA].jogos++;
+                    stats[timeB].jogos++;
+                    
+                    stats[timeA].saldoGames += (gamesA - gamesB);
+                    stats[timeB].saldoGames += (gamesB - gamesA);
+
+                    stats[timeA].saldoSets += (setsGanhosA - setsGanhosB);
+                    stats[timeB].saldoSets += (setsGanhosB - setsGanhosA);
+
+                    // Quem ganhou a partida?
+                    if (setsGanhosA > setsGanhosB || (setsGanhosA === setsGanhosB && gamesA > gamesB)) {
+                        stats[timeA].vitorias++;
+                    } else if (setsGanhosB > setsGanhosA || (setsGanhosB === setsGanhosA && gamesB > gamesA)) {
+                        stats[timeB].vitorias++;
+                    }
+                }
+            });
+
+            // 3. Transforma o objeto em array e ORDENA (Regra do Beach Tennis)
+            let classificacao = Object.values(stats);
+            
+            classificacao.sort((a, b) => {
+                if (b.vitorias !== a.vitorias) return b.vitorias - a.vitorias; // 1º Vitórias
+                if (b.saldoSets !== a.saldoSets) return b.saldoSets - a.saldoSets; // 2º Saldo de Sets
+                return b.saldoGames - a.saldoGames; // 3º Saldo de Games
+            });
+
+            // 4. Monta o HTML da tabela
+            let htmlTabela = `
+                <table class="standings-table">
+                    <thead>
+                        <tr>
+                            <th>Dupla</th>
+                            <th title="Jogos">J</th>
+                            <th title="Vitórias">V</th>
+                            <th title="Saldo de Sets">SS</th>
+                            <th title="Saldo de Games">SG</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+            `;
+
+            classificacao.forEach((time, index) => {
+                // Coloca um trofeuzinho ou medalha para os que estão classificando (Top 2)
+                let icone = "";
+                if (index === 0) icone = "🥇 ";
+                if (index === 1) icone = "🥈 ";
+
+                htmlTabela += `
+                    <tr>
+                        <td>${icone}${time.nome}</td>
+                        <td>${time.jogos}</td>
+                        <td><strong>${time.vitorias}</strong></td>
+                        <td>${time.saldoSets}</td>
+                        <td>${time.saldoGames}</td>
+                    </tr>
+                `;
+            });
+
+            htmlTabela += `</tbody></table>`;
+            
+            // Joga a tabela na tela
+            tabelaContainer.innerHTML = htmlTabela;
+            botao.textContent = '🔄 Atualizar Classificação';
+        };
+
         // --- GERADOR DE CHAVES ATUALIZADO ---
         document.getElementById('btnGerarChaves').addEventListener('click', () => {
             const chavesUI = document.getElementById('chavesGeradasUI');
@@ -561,15 +714,19 @@
 
                 grupos.forEach((grupo, index) => {
                     const nomeGrupo = String.fromCharCode(65 + index);
-                    htmlJogos += `<div style="margin-bottom: 20px;">
-                                    <h5 style="background: var(--dark); color: var(--white); padding: 5px 10px; border-radius: 5px;">Grupo ${nomeGrupo}</h5>`;
+                    
+                    // Container principal do grupo
+                    htmlJogos += `<div style="margin-bottom: 30px; background: var(--white); padding: 15px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.05);">
+                                    <h5 style="background: var(--dark); color: var(--white); padding: 8px 15px; border-radius: 5px; margin-bottom: 15px; display: flex; justify-content: space-between; align-items: center;">
+                                        Grupo ${nomeGrupo}
+                                        <button onclick="atualizarClassificacao(this, '${nomeGrupo}')" class="btn" style="background: var(--primary); padding: 5px 10px; font-size: 0.8rem;">🔄 Atualizar Classificação</button>
+                                    </h5>`;
                     
                     for (let i = 0; i < grupo.length; i++) {
                         for (let j = i + 1; j < grupo.length; j++) {
                             let timeA = grupo[i].jogador2 ? `${grupo[i].jogador1} & ${grupo[i].jogador2}` : grupo[i].jogador1;
                             let timeB = grupo[j].jogador2 ? `${grupo[j].jogador1} & ${grupo[j].jogador2}` : grupo[j].jogador1;
 
-                            // ADICIONADO O ONCLICK AQUI NO BOTÃO:
                             htmlJogos += `
                                 <div class="match-box">
                                     <strong style="color: var(--primary-dark);">${timeA}</strong>
@@ -580,6 +737,10 @@
                                 </div>`;
                         }
                     }
+                    
+                    // Espaço reservado para a tabela aparecer
+                    htmlJogos += `<div class="tabela-container"></div>`;
+                    
                     htmlJogos += `</div>`;
                 });
 
@@ -590,7 +751,6 @@
                     
                     if (sorteados[i+1]) {
                         let timeB = sorteados[i+1].jogador2 ? `${sorteados[i+1].jogador1} & ${sorteados[i+1].jogador2}` : sorteados[i+1].jogador1;
-                        // ADICIONADO O ONCLICK AQUI NO BOTÃO:
                         htmlJogos += `
                             <div class="match-box">
                                 <strong style="color: var(--primary-dark);">${timeA}</strong>
@@ -611,6 +771,7 @@
             chavesUI.innerHTML = htmlJogos;
         });
 
+        // --- EVENTOS DO FORMULÁRIO E LOGIN ---
         form.addEventListener('submit', async (e) => {
             e.preventDefault();
             const btnSubmit = form.querySelector('button[type="submit"]');
@@ -625,6 +786,7 @@
                     sets: document.getElementById('qtdSets').options[document.getElementById('qtdSets').selectedIndex].text,
                     dataCriacao: serverTimestamp()
                 };
+
                 await addDoc(collection(db, "campeonatos"), novoCamp);
                 form.reset();
                 createSection.style.display = 'none';
