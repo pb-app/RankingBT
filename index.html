@@ -192,9 +192,8 @@
         let setsAberto = ""; 
         let inscritosUnsubscribe = null; 
         let inscritosAtuais = []; 
-        window.fasesMataMata = []; // Guarda o funil do Mata-Mata
+        window.fasesMataMata = []; 
 
-        // Elementos DOM
         const btnLogin = document.getElementById('btnLogin');
         const btnLogout = document.getElementById('btnLogout');
         const userMenu = document.getElementById('user-menu');
@@ -205,7 +204,6 @@
         const listSection = document.getElementById('list-section');
         const detailsSection = document.getElementById('details-section');
 
-        // Autenticação Visual
         function updateAuthUI() {
             if (isLogged) {
                 btnLogin.classList.add('hidden'); userMenu.classList.remove('hidden');
@@ -214,7 +212,6 @@
             }
         }
 
-        // Lê Torneios
         const q = query(collection(db, "campeonatos"), orderBy("dataCriacao", "desc"));
         onSnapshot(q, (snapshot) => {
             tournamentsContainer.innerHTML = ''; 
@@ -229,7 +226,6 @@
             });
         });
 
-        // Abre Torneio
         function abrirPainelTorneio(id, nome, formato, sets) {
             torneioAbertoId = id; formatoAberto = formato; setsAberto = sets || ""; 
             document.getElementById('detalhe-nome-torneio').textContent = nome;
@@ -246,7 +242,6 @@
             if (inscritosUnsubscribe) inscritosUnsubscribe();
         });
 
-        // Inscritos
         function carregarInscritos(torneioId) {
             const listaUI = document.getElementById('listaInscritosUI');
             listaUI.innerHTML = 'Carregando...';
@@ -275,7 +270,7 @@
             finally { document.getElementById('btnAddInscrito').disabled = false; }
         });
 
-        // Utilitário de Placares
+        // --- ATUALIZADO: Adicionado 'oninput' para liberar o botão ao digitar ---
         function gerarInputsPlacar(formatoSets) {
             if (formatoSets && formatoSets.includes("Melhor de 3")) {
                 return `
@@ -283,15 +278,36 @@
                         ${[1, 2, 3].map(set => `
                         <div style="display: flex; align-items: center; gap: 10px;">
                             <span style="font-size: 0.8rem; width: 45px; color: var(--gray);">${set===3 ? 'Tie' : set+'º Set'}</span>
-                            <input type="number" class="score-input p-timeA" min="0"> <span style="font-weight: bold;">X</span> <input type="number" class="score-input p-timeB" min="0">
+                            <input type="number" class="score-input p-timeA" min="0" oninput="liberarBotaoSalvar(this)"> 
+                            <span style="font-weight: bold;">X</span> 
+                            <input type="number" class="score-input p-timeB" min="0" oninput="liberarBotaoSalvar(this)">
                         </div>`).join('')}
                     </div>`;
             } else {
-                return `<div class="match-score"><input type="number" class="score-input p-timeA" min="0"> <span>X</span> <input type="number" class="score-input p-timeB" min="0"></div>`;
+                return `<div class="match-score"><input type="number" class="score-input p-timeA" min="0" oninput="liberarBotaoSalvar(this)"> <span>X</span> <input type="number" class="score-input p-timeB" min="0" oninput="liberarBotaoSalvar(this)"></div>`;
             }
         }
 
-        // --- SALVAR PLACAR E AVANÇAR NO MATA-MATA ---
+        // --- NOVA FUNÇÃO: Libera o botão se a pessoa digitar algo novo ---
+        window.liberarBotaoSalvar = function(inputElement) {
+            const matchBox = inputElement.closest('.match-box') || inputElement.closest('.bracket-match');
+            
+            // Se a fase já foi encerrada (cadeado ativado), não deixa alterar nada
+            if (matchBox.classList.contains('fase-encerrada')) {
+                return;
+            }
+
+            const btn = matchBox.querySelector('button');
+            if (btn && btn.textContent === '✅ Salvo!') {
+                btn.disabled = false;
+                btn.textContent = '💾 Salvar Placar';
+                btn.style.background = 'transparent';
+                btn.style.color = 'var(--primary)';
+                btn.style.border = '1px solid var(--primary)';
+                matchBox.classList.remove('resolvido'); 
+            }
+        };
+
         window.salvarPlacar = async function(botao, timeA, timeB) {
             const matchBox = botao.closest('.match-box') || botao.closest('.bracket-match');
             const isMataMata = matchBox.classList.contains('mata-mata-match');
@@ -324,7 +340,6 @@
             } catch(e) { alert("Erro."); botao.textContent = '💾 Salvar Placar'; botao.disabled = false; }
         };
 
-        // --- TABELA DE GRUPOS ---
         window.atualizarClassificacao = async function(botao, nomeGrupo) {
             const container = botao.closest('div'); 
             const tabelaContainer = container.querySelector('.tabela-container');
@@ -374,7 +389,6 @@
             botao.textContent = '🔄 Atualizar Classificação';
         };
 
-        // --- GERAR GRUPOS ---
         document.getElementById('btnGerarChaves').addEventListener('click', () => {
             const chavesUI = document.getElementById('chavesGeradasUI');
             if (inscritosAtuais.length < 2) return;
@@ -400,12 +414,10 @@
                 document.getElementById('btnMontarMataMata').classList.remove('hidden');
             } else {
                 html += '<h4>⚔️ Mata-Mata Apenas</h4>';
-                // Lógica simples se não tiver grupo...
             }
             chavesUI.innerHTML = html;
         });
 
-        // --- LÓGICA E DESENHO DO MATA-MATA ---
         function renderizarMataMata(fasesArray) {
             const mataMataUI = document.getElementById('mataMataUI');
             let html = '<div class="bracket-container">';
@@ -468,11 +480,9 @@
             });
         };
 
-        // EVENTO CLIQUE BOTÃO MATA-MATA (LENDO A TABELA CORRETA)
         document.getElementById('btnMontarMataMata').addEventListener('click', () => {
             let classif = [];
             
-            // Vai ler APENAS o <tbody> ignorando o <thead>
             document.querySelectorAll('.standings-table tbody').forEach(tb => {
                 let trs = tb.querySelectorAll('tr');
                 if(trs.length > 0) classif.push(trs[0].cells[0].innerText.replace('🥇', '').trim());
@@ -481,7 +491,22 @@
 
             if (classif.length < 2) { alert("Atualize as classificações dos grupos primeiro!"); return; }
 
-            classif.sort(() => Math.random() - 0.5); // Sorteio Aleatório Inicial
+            // --- NOVO: Travar a edição dos grupos ao avançar para o Mata-Mata ---
+            document.querySelectorAll('#chavesGeradasUI .match-box').forEach(box => {
+                box.classList.add('fase-encerrada');
+                box.querySelectorAll('input').forEach(inp => inp.disabled = true);
+                box.querySelectorAll('button').forEach(b => {
+                    b.disabled = true;
+                    if (b.textContent !== '✅ Salvo!') {
+                        b.textContent = '🔒 Fechado';
+                        b.style.border = 'none';
+                        b.style.background = '#eee';
+                        b.style.color = '#888';
+                    }
+                });
+            });
+
+            classif.sort(() => Math.random() - 0.5); 
             
             window.fasesMataMata = [];
             let totalJogos = Math.ceil(classif.length / 2);
@@ -503,7 +528,6 @@
             renderizarMataMata(window.fasesMataMata);
         });
 
-        // --- SALVAR NOVO CAMPEONATO E EVENTOS BASE ---
         form.addEventListener('submit', async (e) => {
             e.preventDefault(); const b = form.querySelector('button[type="submit"]'); b.disabled = true;
             try {
