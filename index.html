@@ -1,0 +1,331 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Liga Beach Tennis - Campeonatos</title>
+    <style>
+        /* Variáveis de Cores (Estilo esportivo/LetzPlay) */
+        :root {
+            --primary: #00d26a;
+            --primary-dark: #00a653;
+            --dark: #1a1a1a;
+            --light: #f4f7f6;
+            --gray: #888;
+            --white: #ffffff;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        body {
+            background-color: var(--light);
+            color: var(--dark);
+        }
+
+        /* Navbar */
+        header {
+            background-color: var(--dark);
+            color: var(--white);
+            padding: 1rem 5%;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        header h1 {
+            color: var(--primary);
+            font-size: 1.5rem;
+        }
+
+        .btn {
+            background-color: var(--primary);
+            color: var(--dark);
+            border: none;
+            padding: 0.5rem 1rem;
+            border-radius: 5px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: 0.3s;
+        }
+
+        .btn:hover {
+            background-color: var(--primary-dark);
+            color: var(--white);
+        }
+
+        .btn-outline {
+            background-color: transparent;
+            color: var(--primary);
+            border: 1px solid var(--primary);
+        }
+
+        /* Container Principal */
+        main {
+            padding: 2rem 5%;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        /* Seções */
+        .section-title {
+            margin-bottom: 1.5rem;
+            font-size: 1.8rem;
+            border-bottom: 2px solid var(--primary);
+            display: inline-block;
+            padding-bottom: 0.3rem;
+        }
+
+        /* Grid de Torneios (Visão Pública) */
+        .tournaments-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 1.5rem;
+        }
+
+        .tournament-card {
+            background-color: var(--white);
+            border-radius: 10px;
+            padding: 1.5rem;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+            border-left: 5px solid var(--primary);
+        }
+
+        .tournament-card h3 {
+            margin-bottom: 0.5rem;
+        }
+
+        .tournament-card p {
+            color: var(--gray);
+            font-size: 0.9rem;
+            margin-bottom: 0.3rem;
+        }
+
+        .badge {
+            display: inline-block;
+            background-color: #eee;
+            padding: 0.2rem 0.5rem;
+            border-radius: 3px;
+            font-size: 0.8rem;
+            margin-top: 0.5rem;
+            font-weight: bold;
+        }
+
+        /* Formulário de Criação (Área Logada) */
+        #create-section {
+            background-color: var(--white);
+            padding: 2rem;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+            display: none; /* Escondido por padrão */
+            margin-bottom: 2rem;
+        }
+
+        .form-group {
+            margin-bottom: 1.2rem;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: bold;
+        }
+
+        .form-control {
+            width: 100%;
+            padding: 0.8rem;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+        }
+
+        .radio-group {
+            display: flex;
+            gap: 1rem;
+            margin-top: 0.5rem;
+        }
+
+        /* Utilitários */
+        .hidden {
+            display: none !important;
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <h1>🎾 Beach Tennis Pro</h1>
+        <div id="auth-area">
+            <button id="btnLogin" class="btn btn-outline">Fazer Login</button>
+            <div id="user-menu" class="hidden">
+                <span style="margin-right: 15px;">Olá, Organizador</span>
+                <button id="btnNewTournament" class="btn">Novo Torneio</button>
+                <button id="btnLogout" class="btn btn-outline" style="margin-left: 10px;">Sair</button>
+            </div>
+        </div>
+    </header>
+
+    <main>
+        <section id="create-section">
+            <h2 class="section-title">Criar Novo Campeonato</h2>
+            <form id="tournament-form">
+                <div class="form-group">
+                    <label for="nomeTorneio">Nome do Campeonato</label>
+                    <input type="text" id="nomeTorneio" class="form-control" placeholder="Ex: Liga Premier - Etapa 1" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="rankingVinculado">Vincular a qual Ranking?</label>
+                    <select id="rankingVinculado" class="form-control" required>
+                        <option value="">Selecione um ranking...</option>
+                        <option value="ranking-geral">Ranking Geral (Simples)</option>
+                        <option value="ranking-duplas-fixas">Ranking Duplas Fixas</option>
+                        <option value="ranking-elite">Liga Beach Tennis Elite</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label>Formato de Disputa</label>
+                    <div class="radio-group">
+                        <label><input type="radio" name="formato" value="mata-mata" required> Apenas Mata-Mata</label>
+                        <label><input type="radio" name="formato" value="grupos-mata" required> Fase de Grupos + Mata-Mata</label>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="qtdSets">Quantidade de Sets (Formato das Partidas)</label>
+                    <select id="qtdSets" class="form-control" required>
+                        <option value="1-set-6">1 Set (até 6 games)</option>
+                        <option value="1-set-8">1 Set Pro (até 8 games)</option>
+                        <option value="melhor-de-3-short">Melhor de 3 (Short Sets)</option>
+                        <option value="melhor-de-3">Melhor de 3 (Normal)</option>
+                    </select>
+                </div>
+
+                <button type="submit" class="btn">Salvar Campeonato</button>
+                <button type="button" id="btnCancelCreate" class="btn btn-outline" style="margin-left: 10px;">Cancelar</button>
+            </form>
+        </section>
+
+        <section id="list-section">
+            <h2 class="section-title">Campeonatos Abertos</h2>
+            <div class="tournaments-grid" id="tournaments-container">
+                </div>
+        </section>
+    </main>
+
+    <script>
+        // --- ESTADO DA APLICAÇÃO ---
+        let isLogged = false;
+        
+        // Dados simulados (No futuro virão do Firestore)
+        let campeonatos = [
+            {
+                nome: "Open de Verão - Duplas Fixas",
+                ranking: "Ranking Duplas Fixas",
+                formato: "Fase de Grupos + Mata-Mata",
+                sets: "1 Set (até 6 games)"
+            },
+            {
+                nome: "Rei da Praia 2026",
+                ranking: "Ranking Geral",
+                formato: "Apenas Mata-Mata",
+                sets: "1 Set Pro (até 8 games)"
+            }
+        ];
+
+        // --- ELEMENTOS DO DOM ---
+        const btnLogin = document.getElementById('btnLogin');
+        const btnLogout = document.getElementById('btnLogout');
+        const userMenu = document.getElementById('user-menu');
+        const btnNewTournament = document.getElementById('btnNewTournament');
+        const createSection = document.getElementById('create-section');
+        const btnCancelCreate = document.getElementById('btnCancelCreate');
+        const form = document.getElementById('tournament-form');
+        const tournamentsContainer = document.getElementById('tournaments-container');
+
+        // --- FUNÇÕES ---
+
+        // Renderiza a lista de torneios na tela
+        function renderTournaments() {
+            tournamentsContainer.innerHTML = '';
+            campeonatos.forEach(camp => {
+                const card = document.createElement('div');
+                card.className = 'tournament-card';
+                card.innerHTML = `
+                    <h3>${camp.nome}</h3>
+                    <p><strong>Ranking:</strong> ${camp.ranking}</p>
+                    <p><strong>Formato:</strong> ${camp.formato}</p>
+                    <span class="badge">🎾 ${camp.sets}</span>
+                `;
+                tournamentsContainer.appendChild(card);
+            });
+        }
+
+        // Atualiza a interface baseada no login
+        function updateAuthUI() {
+            if (isLogged) {
+                btnLogin.classList.add('hidden');
+                userMenu.classList.remove('hidden');
+            } else {
+                btnLogin.classList.remove('hidden');
+                userMenu.classList.add('hidden');
+                createSection.style.display = 'none'; // Esconde form se deslogar
+            }
+        }
+
+        // --- EVENTOS ---
+
+        // Simula Login
+        btnLogin.addEventListener('click', () => {
+            isLogged = true;
+            updateAuthUI();
+        });
+
+        // Simula Logout
+        btnLogout.addEventListener('click', () => {
+            isLogged = false;
+            updateAuthUI();
+        });
+
+        // Mostra formulário de criação
+        btnNewTournament.addEventListener('click', () => {
+            createSection.style.display = 'block';
+        });
+
+        // Esconde formulário de criação
+        btnCancelCreate.addEventListener('click', () => {
+            createSection.style.display = 'none';
+            form.reset();
+        });
+
+        // Submissão do formulário (Criar Campeonato)
+        form.addEventListener('submit', (e) => {
+            e.preventDefault();
+            
+            // Coleta os dados
+            const novoCamp = {
+                nome: document.getElementById('nomeTorneio').value,
+                ranking: document.getElementById('rankingVinculado').options[document.getElementById('rankingVinculado').selectedIndex].text,
+                formato: document.querySelector('input[name="formato"]:checked').parentElement.textContent.trim(),
+                sets: document.getElementById('qtdSets').options[document.getElementById('qtdSets').selectedIndex].text
+            };
+
+            // Adiciona na lista e re-renderiza (Aqui entrará o código do Firestore)
+            campeonatos.unshift(novoCamp);
+            renderTournaments();
+            
+            // Limpa e esconde o form
+            form.reset();
+            createSection.style.display = 'none';
+            alert('Campeonato criado com sucesso!');
+        });
+
+        // --- INICIALIZAÇÃO ---
+        renderTournaments();
+    </script>
+</body>
+</html>
