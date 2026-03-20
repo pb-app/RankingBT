@@ -285,6 +285,8 @@
                     <button id="btnGerarChaves" class="btn" style="width: 100%; background-color: var(--dark); color: var(--white);">
                         ⚙️ Gerar Chaves / Grupos
                     </button>
+                    <div id="chavesGeradasUI" style="margin-top: 15px;"></div>
+                    </button>
                 </div>
             </div>
         </section>
@@ -383,6 +385,39 @@
 
             // CHAMA A FUNÇÃO DE CARREGAR OS INSCRITOS DESTE TORNEIO:
             carregarInscritos(id);
+            let inscritosUnsubscribe = null;
+        let inscritosAtuais = []; // <-- NOVA VARIÁVEL AQUI
+
+        function carregarInscritos(torneioId) {
+            const listaUI = document.getElementById('listaInscritosUI');
+            listaUI.innerHTML = 'Carregando...';
+
+            const inscritosRef = collection(db, "campeonatos", torneioId, "inscritos");
+            const qInscritos = query(inscritosRef, orderBy("dataCriacao", "asc"));
+
+            inscritosUnsubscribe = onSnapshot(qInscritos, (snapshot) => {
+                listaUI.innerHTML = ''; 
+                inscritosAtuais = []; // <-- LIMPA A LISTA ANTES DE PREENCHER DE NOVO
+                
+                if(snapshot.empty) {
+                    listaUI.innerHTML = '<li style="background: transparent; border: none; color: var(--gray);">Nenhum inscrito ainda.</li>';
+                    return;
+                }
+
+                snapshot.forEach((docSnap) => {
+                    const dados = docSnap.data();
+                    inscritosAtuais.push(dados); // <-- GUARDA OS DADOS PARA O SORTEIO
+                    
+                    const li = document.createElement('li');
+                    if (dados.jogador2) {
+                        li.innerHTML = `🎾 <strong>${dados.jogador1}</strong> e <strong>${dados.jogador2}</strong>`;
+                    } else {
+                        li.innerHTML = `🎾 <strong>${dados.jogador1}</strong>`;
+                    }
+                    listaUI.appendChild(li);
+                });
+            });
+        }
         }
 
         btnVoltar.addEventListener('click', () => {
@@ -500,6 +535,48 @@
                 btnAdd.textContent = 'Adicionar Inscrição';
                 btnAdd.disabled = false;
             }
+        });
+        // --- GERADOR DE CHAVES (SORTEIO MATA-MATA) ---
+        document.getElementById('btnGerarChaves').addEventListener('click', () => {
+            const chavesUI = document.getElementById('chavesGeradasUI');
+            
+            if (inscritosAtuais.length < 2) {
+                alert("É preciso ter pelo menos 2 inscrições (jogadores ou duplas) para gerar uma chave!");
+                return;
+            }
+
+            // 1. Embaralha a lista de inscritos aleatoriamente
+            const sorteados = [...inscritosAtuais].sort(() => Math.random() - 0.5);
+
+            // 2. Monta o visual dos confrontos
+            let htmlConfrontos = '<h4 style="margin-bottom: 10px; border-bottom: 1px solid #ccc; padding-bottom: 5px;">⚔️ 1ª Rodada (Sorteio)</h4>';
+            htmlConfrontos += '<ul class="lista-inscritos">';
+
+            for (let i = 0; i < sorteados.length; i += 2) {
+                // Formata o nome do Time A
+                let timeA = sorteados[i].jogador2 ? `${sorteados[i].jogador1} / ${sorteados[i].jogador2}` : sorteados[i].jogador1;
+                
+                // Formata o nome do Time B (ou dá vitória por W.O/Bye se for ímpar)
+                let timeB = "<em>Avança direto (BYE)</em>";
+                if (sorteados[i+1]) {
+                    timeB = sorteados[i+1].jogador2 ? `${sorteados[i+1].jogador1} / ${sorteados[i+1].jogador2}` : sorteados[i+1].jogador1;
+                }
+
+                htmlConfrontos += `
+                    <li style="text-align: center; background-color: #f9f9f9; border-left: 4px solid var(--dark);">
+                        <span style="color: var(--primary-dark); font-weight: bold;">${timeA}</span>
+                        <div style="margin: 5px 0; font-size: 0.8rem; color: var(--gray);">VS</div>
+                        <span style="color: var(--dark); font-weight: bold;">${timeB}</span>
+                    </li>
+                `;
+            }
+
+            htmlConfrontos += '</ul>';
+            
+            // 3. Joga na tela
+            chavesUI.innerHTML = htmlConfrontos;
+            
+            // (Opcional) Aqui futuramente você pode colocar um addDoc() para salvar esse sorteio no Firebase!
         });
     </script>
 </body>
