@@ -152,6 +152,50 @@
         .hidden {
             display: none !important;
         }
+        /* Tela de Detalhes do Campeonato */
+        #details-section {
+            background-color: var(--white);
+            padding: 2rem;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+        }
+
+        .panel-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 2rem;
+            margin-top: 1.5rem;
+        }
+
+        .panel-card {
+            background-color: var(--light);
+            padding: 1.5rem;
+            border-radius: 8px;
+            border: 1px solid #ddd;
+        }
+
+        .lista-inscritos {
+            list-style: none;
+            margin-top: 1rem;
+        }
+
+        .lista-inscritos li {
+            background: var(--white);
+            padding: 0.5rem;
+            margin-bottom: 0.5rem;
+            border-radius: 5px;
+            border-left: 3px solid var(--primary);
+        }
+        
+        /* Modificador para o card ser clicável */
+        .tournament-card {
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+        .tournament-card:hover {
+            transform: translateY(-5px);
+            border-color: var(--primary-dark);
+        }
     </style>
 </head>
 <body>
@@ -215,6 +259,34 @@
             <div class="tournaments-grid" id="tournaments-container">
                 </div>
         </section>
+        <section id="details-section" class="hidden">
+            <button id="btnVoltar" class="btn btn-outline" style="margin-bottom: 1rem;">⬅ Voltar para a Lista</button>
+            
+            <h2 class="section-title" id="detalhe-nome-torneio">Nome do Torneio</h2>
+            <p><strong id="detalhe-formato-torneio">Formato: </strong></p>
+
+            <div class="panel-grid">
+                <div class="panel-card">
+                    <h3>👥 Gerenciar Inscritos</h3>
+                    <div class="form-group" style="margin-top: 10px;">
+                        <input type="text" id="nomeInscrito" class="form-control" placeholder="Nome do Jogador ou Dupla">
+                        <button id="btnAddInscrito" class="btn" style="margin-top: 10px; width: 100%;">Adicionar à Lista</button>
+                    </div>
+                    <ul class="lista-inscritos" id="listaInscritosUI">
+                        </ul>
+                </div>
+
+                <div class="panel-card">
+                    <h3>🏆 Chaves e Grupos</h3>
+                    <p style="color: var(--gray); margin-bottom: 15px; font-size: 0.9rem;">
+                        Adicione os jogadores primeiro para depois gerar os confrontos.
+                    </p>
+                    <button id="btnGerarChaves" class="btn" style="width: 100%; background-color: var(--dark); color: var(--white);">
+                        ⚙️ Gerar Chaves / Grupos
+                    </button>
+                </div>
+            </div>
+        </section>
     </main>
 
     <script type="module">
@@ -261,11 +333,20 @@
             }
         }
 
+// --- ELEMENTOS DO PAINEL DE DETALHES ---
+        const listSection = document.getElementById('list-section');
+        const detailsSection = document.getElementById('details-section');
+        const btnVoltar = document.getElementById('btnVoltar');
+        const tituloDetalhe = document.getElementById('detalhe-nome-torneio');
+        const formatoDetalhe = document.getElementById('detalhe-formato-torneio');
+        
+        let torneioAbertoId = null; // Guarda o ID do torneio que estamos visualizando
+
         // --- FIREBASE: LENDO OS DADOS EM TEMPO REAL ---
         const q = query(collection(db, "campeonatos"), orderBy("dataCriacao", "desc"));
         
         onSnapshot(q, (snapshot) => {
-            tournamentsContainer.innerHTML = ''; // Limpa a tela
+            tournamentsContainer.innerHTML = ''; 
             
             if (snapshot.empty) {
                 tournamentsContainer.innerHTML = '<p>Nenhum campeonato aberto no momento.</p>';
@@ -276,6 +357,9 @@
                 const camp = doc.data();
                 const card = document.createElement('div');
                 card.className = 'tournament-card';
+                // Adicionamos a função de clique direto no card, passando os dados e a ID do Firebase (doc.id)
+                card.onclick = () => abrirPainelTorneio(doc.id, camp.nome, camp.formato);
+                
                 card.innerHTML = `
                     <h3>${camp.nome}</h3>
                     <p><strong>Ranking:</strong> ${camp.ranking}</p>
@@ -286,35 +370,47 @@
             });
         });
 
+        // --- FUNÇÕES DE NAVEGAÇÃO DO PAINEL ---
+        function abrirPainelTorneio(id, nome, formato) {
+            torneioAbertoId = id; // Salvamos qual torneio o usuário clicou
+            tituloDetalhe.textContent = nome;
+            formatoDetalhe.textContent = `Formato: ${formato}`;
+            
+            // Esconde a lista e o formulário de criação, mostra o painel
+            listSection.classList.add('hidden');
+            createSection.style.display = 'none';
+            detailsSection.classList.remove('hidden');
+        }
+
+        btnVoltar.addEventListener('click', () => {
+            torneioAbertoId = null;
+            detailsSection.classList.add('hidden');
+            listSection.classList.remove('hidden');
+        });
+
         // --- FIREBASE: SALVANDO UM NOVO CAMPEONATO ---
         form.addEventListener('submit', async (e) => {
             e.preventDefault();
-            
             const btnSubmit = form.querySelector('button[type="submit"]');
             btnSubmit.textContent = 'Salvando...';
             btnSubmit.disabled = true;
 
             try {
-                // Prepara os dados do formulário
                 const novoCamp = {
                     nome: document.getElementById('nomeTorneio').value,
                     ranking: document.getElementById('rankingVinculado').options[document.getElementById('rankingVinculado').selectedIndex].text,
                     formato: document.querySelector('input[name="formato"]:checked').parentElement.textContent.trim(),
                     sets: document.getElementById('qtdSets').options[document.getElementById('qtdSets').selectedIndex].text,
-                    dataCriacao: serverTimestamp() // Salva a hora exata no servidor
+                    dataCriacao: serverTimestamp()
                 };
 
-                // Envia para o Firestore
                 await addDoc(collection(db, "campeonatos"), novoCamp);
-                
-                // Limpa e esconde o form após sucesso
                 form.reset();
                 createSection.style.display = 'none';
                 alert('Campeonato criado com sucesso!');
-
             } catch (error) {
                 console.error("Erro ao salvar:", error);
-                alert('Erro ao criar campeonato. Verifique as permissões do seu banco no Firebase.');
+                alert('Erro ao criar campeonato. Verifique o console.');
             } finally {
                 btnSubmit.textContent = 'Salvar Campeonato';
                 btnSubmit.disabled = false;
@@ -323,11 +419,10 @@
 
         // --- EVENTOS DE BOTÕES SIMPLES ---
         btnLogin.addEventListener('click', () => { isLogged = true; updateAuthUI(); });
-        btnLogout.addEventListener('click', () => { isLogged = false; updateAuthUI(); });
-        btnNewTournament.addEventListener('click', () => { createSection.style.display = 'block'; });
+        btnLogout.addEventListener('click', () => { isLogged = false; updateAuthUI(); detailsSection.classList.add('hidden'); listSection.classList.remove('hidden'); });
+        btnNewTournament.addEventListener('click', () => { createSection.style.display = 'block'; detailsSection.classList.add('hidden'); listSection.classList.remove('hidden'); });
         btnCancelCreate.addEventListener('click', () => { createSection.style.display = 'none'; form.reset(); });
 
-        // Inicializa a UI
         updateAuthUI();
     </script>
 </body>
