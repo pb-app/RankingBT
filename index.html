@@ -144,6 +144,18 @@
 </head>
 <body>
 
+    <div id="modalRankings" class="hidden" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); z-index: 1000; display: flex; justify-content: center; align-items: center;">
+        <div style="background: var(--white); padding: 2rem; border-radius: 10px; width: 90%; max-width: 400px;">
+            <h3 style="margin-bottom: 1rem; color: var(--dark);">Gerenciar Categorias</h3>
+            <div style="display: flex; gap: 10px; margin-bottom: 15px;">
+                <input type="text" id="novaCategoriaInput" class="form-control" placeholder="Ex: Categoria C">
+                <button id="btnAdicionarCategoria" class="btn" style="padding: 0 15px; font-size: 1.5rem;">+</button>
+            </div>
+            <ul id="listaCategoriasUI" style="list-style: none; margin-bottom: 15px; max-height: 200px; overflow-y: auto; text-align: left;"></ul>
+            <button type="button" id="btnFecharModalRankings" class="btn btn-outline" style="width: 100%;">Fechar</button>
+        </div>
+    </div>
+    
     <div id="loginModal" class="hidden" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); z-index: 1000; display: flex; justify-content: center; align-items: center;">
         <div style="background: var(--white); padding: 2rem; border-radius: 10px; width: 90%; max-width: 400px; text-align: center;">
             <h2 style="margin-bottom: 1.5rem; color: var(--dark);">Acesso do Organizador</h2>
@@ -186,10 +198,7 @@
                 <div class="form-group">
                     <label for="rankingVinculado">Vincular a qual Ranking?</label>
                     <select id="rankingVinculado" class="form-control" required>
-                        <option value="">Selecione um ranking...</option>
-                        <option value="ranking-geral">Ranking Geral (Simples)</option>
-                        <option value="ranking-duplas-fixas">Ranking Duplas Fixas</option>
-                        <option value="ranking-elite">Liga Beach Tennis Elite</option>
+                        <option value="">Carregando rankings...</option>
                     </select>
                 </div>
                 <div class="form-group">
@@ -228,6 +237,18 @@
                     <option value="ranking-elite">Liga Beach Tennis Elite</option>
                 </select>
             </div>
+
+            <section id="ranking-section" class="hidden">
+            <h2 class="section-title">🏆 Ranking Geral</h2>
+            <div style="display: flex; gap: 10px; align-items: flex-end; margin-bottom: 20px;">
+                <div class="form-group" style="margin-bottom: 0; flex-grow: 1; max-width: 300px;">
+                    <label>Filtrar por Categoria:</label>
+                    <select id="filtroVisualRanking" class="form-control">
+                        <option value="">Carregando...</option>
+                    </select>
+                </div>
+                <button id="btnGerenciarRankings" class="btn btn-outline hidden" style="height: 44px;">⚙️ Gerenciar</button>
+            </div>
             
             <div style="background: var(--white); border-radius: 10px; padding: 20px; box-shadow: 0 4px 6px rgba(0,0,0,0.05);">
                 <table class="standings-table" style="margin: 0;">
@@ -260,8 +281,11 @@
                 <div class="panel-card" id="painel-inscritos">
                     <h3>👥 Inscritos</h3>
                     <div class="form-group" id="area-add-inscritos" style="margin-top: 10px;">
-                        <input type="text" id="nomeJogador1" class="form-control" placeholder="Nome do Jogador 1 (Obrigatório)" style="margin-bottom: 8px;">
-                        <input type="text" id="nomeJogador2" class="form-control" placeholder="Nome do Jogador 2 (Deixe em branco se for Simples)">
+                        <input type="text" id="nomeJogador1" list="sugestoesJogadores" class="form-control" placeholder="Nome do Jogador 1 (Obrigatório)" style="margin-bottom: 8px;">
+                        <input type="text" id="nomeJogador2" list="sugestoesJogadores" class="form-control" placeholder="Nome do Jogador 2 (Deixe em branco se for Simples)">
+                        
+                        <datalist id="sugestoesJogadores"></datalist>
+                        
                         <button id="btnAddInscrito" class="btn" style="margin-top: 10px; width: 100%;">Adicionar Inscrição</button>
                     </div>
                     <ul class="lista-inscritos" id="listaInscritosUI"></ul>
@@ -384,6 +408,8 @@
             document.getElementById('btnMontarMataMata').classList.add('hidden');
             
             carregarInscritos(id);
+            // Busca os nomes dos jogadores do ranking para o autocompletar
+            carregarSugestoesJogadores(camp.ranking);
 
             // CONTROLE DE ACESSO: Oculta painéis de edição se for visitante
             if (isLogged) {
@@ -462,6 +488,22 @@
             } catch (error) { alert("Erro ao inscrever."); } 
             finally { document.getElementById('btnAddInscrito').disabled = false; }
         });
+
+        // --- FUNÇÃO DE AUTOCOMPLETAR JOGADORES ---
+        async function carregarSugestoesJogadores(rankingNome) {
+            const datalist = document.getElementById('sugestoesJogadores');
+            datalist.innerHTML = '';
+            if (!rankingNome) return;
+            try {
+                // Puxa todos os jogadores que já existem neste ranking
+                const snap = await getDocs(collection(db, "rankings", rankingNome, "jogadores"));
+                snap.forEach(doc => {
+                    let option = document.createElement('option');
+                    option.value = doc.data().nome;
+                    datalist.appendChild(option);
+                });
+            } catch(e) { console.log("Erro nas sugestões:", e); }
+        }
 
         function gerarInputsPlacar(formatoSets, matchId) {
             let dados = jogosSalvos[matchId] || { placarA: [], placarB: [] };
@@ -1072,6 +1114,74 @@
         filtroRanking.addEventListener('change', carregarRanking);
         // Atualiza o ranking quando você clica no botão "Ver Ranking" do topo
         document.getElementById('btnAbaRankings').addEventListener('click', carregarRanking);
+
+        // --- GERENCIAMENTO DINÂMICO DE CATEGORIAS DE RANKING ---
+        const selectRankingCreate = document.getElementById('rankingVinculado');
+        const selectRankingFilter = document.getElementById('filtroVisualRanking');
+        const btnGerenciarRankings = document.getElementById('btnGerenciarRankings');
+        const modalRankings = document.getElementById('modalRankings');
+        const listaCategoriasUI = document.getElementById('listaCategoriasUI');
+
+        // Mostra o botão só se estiver logado
+        onAuthStateChanged(auth, (user) => {
+            if (user) { btnGerenciarRankings.classList.remove('hidden'); } 
+            else { btnGerenciarRankings.classList.add('hidden'); }
+        });
+
+        // Abre/Fecha Modal
+        btnGerenciarRankings.addEventListener('click', () => modalRankings.classList.remove('hidden'));
+        document.getElementById('btnFecharModalRankings').addEventListener('click', () => modalRankings.classList.add('hidden'));
+
+        // Lê as categorias do banco de dados em tempo real
+        onSnapshot(query(collection(db, "categoriasRanking"), orderBy("nome")), (snapshot) => {
+            selectRankingCreate.innerHTML = '<option value="">Selecione um ranking...</option>';
+            selectRankingFilter.innerHTML = '';
+            listaCategoriasUI.innerHTML = '';
+            
+            if (snapshot.empty) {
+                selectRankingFilter.innerHTML = '<option value="">Nenhuma categoria criada</option>';
+                listaCategoriasUI.innerHTML = '<li style="color: var(--gray);">Crie sua primeira categoria acima!</li>';
+                return;
+            }
+
+            snapshot.forEach((docSnap) => {
+                const cat = docSnap.data().nome;
+                const id = docSnap.id;
+                
+                // Preenche as caixinhas de seleção
+                selectRankingCreate.innerHTML += `<option value="${cat}">${cat}</option>`;
+                selectRankingFilter.innerHTML += `<option value="${cat}">${cat}</option>`;
+                
+                // Preenche a lista com botão de apagar no Modal
+                const li = document.createElement('li');
+                li.style.cssText = "display: flex; justify-content: space-between; align-items: center; padding: 10px; border-bottom: 1px solid #eee;";
+                li.innerHTML = `<span>${cat}</span> <button class="btn btn-outline" style="padding: 2px 8px; color: #e74c3c; border-color: #e74c3c;" onclick="deletarCategoria('${id}')">Excluir</button>`;
+                listaCategoriasUI.appendChild(li);
+            });
+            
+            // Recarrega a tabela de pontos se estiver na tela de ranking
+            if (!document.getElementById('ranking-section').classList.contains('hidden')) { carregarRanking(); }
+        });
+
+        // Salvar Nova Categoria
+        document.getElementById('btnAdicionarCategoria').addEventListener('click', async () => {
+            const nomeInput = document.getElementById('novaCategoriaInput');
+            const nome = nomeInput.value.trim();
+            if (!nome) return;
+            document.getElementById('btnAdicionarCategoria').disabled = true;
+            try {
+                await addDoc(collection(db, "categoriasRanking"), { nome: nome });
+                nomeInput.value = '';
+            } catch (e) { alert("Erro ao criar categoria."); }
+            document.getElementById('btnAdicionarCategoria').disabled = false;
+        });
+
+        // Deletar Categoria
+        window.deletarCategoria = async function(id) {
+            if (confirm("Quer mesmo excluir? A categoria vai sumir das opções (mas os pontos dos jogadores já salvos continuam no banco de dados).")) {
+                await deleteDoc(doc(db, "categoriasRanking", id));
+            }
+        };
 
         updateAuthUI();
     </script>
