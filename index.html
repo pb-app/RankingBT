@@ -142,6 +142,19 @@
 </head>
 <body>
 
+    <div id="loginModal" class="hidden" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); z-index: 1000; display: flex; justify-content: center; align-items: center;">
+        <div style="background: var(--white); padding: 2rem; border-radius: 10px; width: 90%; max-width: 400px; text-align: center;">
+            <h2 style="margin-bottom: 1.5rem; color: var(--dark);">Acesso do Organizador</h2>
+            <form id="loginForm">
+                <input type="email" id="emailInput" class="form-control" placeholder="E-mail" required style="margin-bottom: 1rem;">
+                <input type="password" id="senhaInput" class="form-control" placeholder="Senha" required style="margin-bottom: 1.5rem;">
+                <button type="submit" class="btn" style="width: 100%; margin-bottom: 10px;">Entrar</button>
+                <button type="button" id="btnFecharLogin" class="btn btn-outline" style="width: 100%;">Cancelar</button>
+                <p id="loginErro" style="color: red; margin-top: 10px; display: none;">E-mail ou senha incorretos.</p>
+            </form>
+        </div>
+    </div>
+
     <header>
         <h1>🎾 Beach Tennis Pro</h1>
         <div id="auth-area">
@@ -243,6 +256,8 @@
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
         import { getFirestore, collection, addDoc, onSnapshot, query, orderBy, serverTimestamp, doc, updateDoc, getDocs, setDoc } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
+        // NOVO IMPORT DE AUTENTICAÇÃO
+        import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
 
         const firebaseConfig = {
               apiKey: "AIzaSyAxR4s-2QfbKS0mmzsx_bUPQcJ0f5kykZQ",
@@ -255,6 +270,7 @@
 
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
+        const auth = getAuth(app);
 
         // Variáveis Globais
         let isLogged = false;
@@ -717,8 +733,49 @@
             } catch (e) { alert('Erro ao salvar.'); } finally { b.disabled = false; }
         });
 
-        btnLogin.addEventListener('click', () => { isLogged = true; updateAuthUI(); });
-        btnLogout.addEventListener('click', () => { isLogged = false; updateAuthUI(); detailsSection.classList.add('hidden'); listSection.classList.remove('hidden'); });
+        // --- LÓGICA DE LOGIN E AUTENTICAÇÃO ---
+        const loginModal = document.getElementById('loginModal');
+        const loginForm = document.getElementById('loginForm');
+        
+        // Abre e fecha o modal
+        btnLogin.addEventListener('click', () => { loginModal.classList.remove('hidden'); });
+        document.getElementById('btnFecharLogin').addEventListener('click', () => { loginModal.classList.add('hidden'); });
+
+        // Tenta fazer o login no Firebase
+        loginForm.addEventListener('submit', (e) => {
+            e.preventDefault();
+            const email = document.getElementById('emailInput').value;
+            const senha = document.getElementById('senhaInput').value;
+            
+            signInWithEmailAndPassword(auth, email, senha)
+                .then((userCredential) => {
+                    loginModal.classList.add('hidden');
+                    loginForm.reset();
+                    document.getElementById('loginErro').style.display = 'none';
+                })
+                .catch((error) => {
+                    document.getElementById('loginErro').style.display = 'block';
+                });
+        });
+
+        // Fazer Logout
+        btnLogout.addEventListener('click', () => { 
+            signOut(auth).then(() => {
+                detailsSection.classList.add('hidden'); 
+                listSection.classList.remove('hidden');
+            }); 
+        });
+
+        // Fica observando se o usuário está logado ou não (Mantém a sessão ativa mesmo se atualizar a página!)
+        onAuthStateChanged(auth, (user) => {
+            if (user) {
+                isLogged = true;
+                updateAuthUI();
+            } else {
+                isLogged = false;
+                updateAuthUI();
+            }
+        });
         btnNewTournament.addEventListener('click', () => { createSection.style.display = 'block'; detailsSection.classList.add('hidden'); listSection.classList.remove('hidden'); });
         document.getElementById('btnCancelCreate').addEventListener('click', () => { createSection.style.display = 'none'; form.reset(); });
 
