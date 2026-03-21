@@ -727,7 +727,7 @@
             });
         }
 
-        // --- AQUI ACONTECE A MÁGICA DE OCULTAR A COLUNA AO GERAR CHAVES ---
+        // --- AQUI ACONTECE A MÁGICA DE OCULTAR A COLUNA AO GERAR CHAVES E GRUPOS ---
         document.getElementById('btnGerarChaves').addEventListener('click', async () => {
             if (inscritosAtuais.length < 2) return;
             
@@ -739,15 +739,48 @@
             
             document.getElementById('btnGerarChaves').textContent = "Gerando e Salvando...";
             
-            await updateDoc(doc(db, "campeonatos", torneioAbertoId), { sorteados: sorteados, fasesMataMata: [] });
-            
             torneioAbertoData.sorteados = sorteados;
-            torneioAbertoData.fasesMataMata = [];
-            window.fasesMataMata = [];
             jogosSalvos = {}; 
 
-            renderizarGrupos(sorteados);
-            document.getElementById('mataMataUI').innerHTML = '';
+            // VERIFICA SE É FASE DE GRUPOS OU DIRETO MATA-MATA
+            if (formatoAberto.includes("Grupos")) {
+                torneioAbertoData.fasesMataMata = [];
+                window.fasesMataMata = [];
+                await updateDoc(doc(db, "campeonatos", torneioAbertoId), { sorteados: sorteados, fasesMataMata: [] });
+                
+                renderizarGrupos(sorteados);
+                document.getElementById('mataMataUI').innerHTML = '';
+            } else {
+                // LÓGICA SE FOR APENAS MATA-MATA (Gera a chave direto, sem botão extra!)
+                let classif = sorteados.map(insc => insc.jogador2 ? `${insc.jogador1} & ${insc.jogador2}` : insc.jogador1);
+                
+                // Força o número de times a ser uma potência de 2 (2, 4, 8, 16) colocando "BYEs"
+                let nextPowerOf2 = Math.pow(2, Math.ceil(Math.log2(classif.length)));
+                while (classif.length < nextPowerOf2) { classif.push("Avança Direto (BYE)"); }
+                
+                window.fasesMataMata = [];
+                let totalJogos = classif.length / 2;
+                
+                let rod1 = [];
+                for (let i = 0; i < classif.length; i += 2) { 
+                    rod1.push({ timeA: classif[i], timeB: classif[i+1] }); 
+                }
+                window.fasesMataMata.push({ jogos: rod1 }); 
+
+                let prox = totalJogos / 2;
+                while (prox >= 1) {
+                    let rN = []; for(let i=0; i<prox; i++) rN.push({ timeA: null, timeB: null });
+                    window.fasesMataMata.push({ jogos: rN }); 
+                    prox = prox / 2;
+                }
+                
+                torneioAbertoData.fasesMataMata = window.fasesMataMata;
+                await updateDoc(doc(db, "campeonatos", torneioAbertoId), { sorteados: sorteados, fasesMataMata: window.fasesMataMata });
+                
+                document.getElementById('chavesGeradasUI').innerHTML = '<h4 style="text-align:center; padding: 20px; color: var(--gray);">⚔️ Torneio Apenas Mata-Mata</h4>';
+                renderizarMataMata(window.fasesMataMata);
+            }
+
             document.getElementById('btnGerarChaves').innerHTML = "⚙️ Gerar Chaves / Grupos";
 
             // Oculta inscrições e expande a área de chaves
