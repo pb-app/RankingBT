@@ -767,10 +767,12 @@
             renderizarMataMata(window.fasesMataMata);
         };
 
-        // 3. ATUALIZADO: Montar o Mata-Mata (agora salva sem gerar erro de Nested Array)
+        // 3. ATUALIZADO: Montar o Mata-Mata (Correção do Bug do Ranking e Matemática de Chaves)
         document.getElementById('btnMontarMataMata').addEventListener('click', async () => {
             let classif = [];
-            document.querySelectorAll('.standings-table tbody').forEach(tb => {
+            
+            // CORREÇÃO 1: Procura tabelas APENAS dentro da área de grupos gerados (ignora a aba de Ranking)
+            document.querySelectorAll('#chavesGeradasUI .standings-table tbody').forEach(tb => {
                 let trs = tb.querySelectorAll('tr');
                 if(trs.length > 0) classif.push(trs[0].cells[0].innerText.replace('🥇', '').trim());
                 if(trs.length > 1) classif.push(trs[1].cells[0].innerText.replace('🥈', '').trim());
@@ -785,22 +787,28 @@
             travarGrupos(); 
             classif.sort(() => Math.random() - 0.5); 
             
+            // CORREÇÃO 2: Força o número de times a ser uma potência de 2 (2, 4, 8, 16).
+            // Se tiverem 6 times (3 grupos), ele adiciona 2 "BYEs" para fechar 8 times e a chave não quebrar.
+            let nextPowerOf2 = Math.pow(2, Math.ceil(Math.log2(classif.length)));
+            while (classif.length < nextPowerOf2) {
+                classif.push("Avança Direto (BYE)");
+            }
+
             window.fasesMataMata = [];
-            let totalJogos = Math.ceil(classif.length / 2);
+            let totalJogos = classif.length / 2;
             
             let rod1 = [];
-            for (let i=0; i<classif.length; i+=2) { rod1.push({ timeA: classif[i], timeB: classif[i+1] || "Avança Direto (BYE)" }); }
+            for (let i = 0; i < classif.length; i += 2) { 
+                rod1.push({ timeA: classif[i], timeB: classif[i+1] }); 
+            }
             
-            // CORREÇÃO: Coloca o array dentro de um objeto { jogos: ... }
             window.fasesMataMata.push({ jogos: rod1 }); 
 
-            let prox = Math.floor(totalJogos / 2);
+            let prox = totalJogos / 2;
             while (prox >= 1) {
                 let rN = []; for(let i=0; i<prox; i++) rN.push({ timeA: null, timeB: null });
-                
-                // CORREÇÃO: Coloca o array dentro de um objeto { jogos: ... }
                 window.fasesMataMata.push({ jogos: rN }); 
-                prox = Math.floor(prox / 2);
+                prox = prox / 2;
             }
             
             await updateDoc(doc(db, "campeonatos", torneioAbertoId), { fasesMataMata: window.fasesMataMata });
