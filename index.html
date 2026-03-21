@@ -657,12 +657,32 @@
             let html = '';
 
             if (formatoAberto.includes("Grupos")) {
-                let grupos = []; for (let i = 0; i < sorteados.length; i += 3) grupos.push(sorteados.slice(i, i + 3));
+                
+                // --- NOVA LÓGICA INTELIGENTE DE GRUPOS ---
+                let numGrupos = 1;
+                
+                // Se tiver 6 ou mais duplas, divide por 3 para achar a quantidade de grupos.
+                // Se tiver menos de 6 (ex: 4 ou 5), cria 1 grupo só pra todo mundo jogar contra todo mundo.
+                if (sorteados.length >= 6) {
+                    numGrupos = Math.floor(sorteados.length / 3);
+                }
+                
+                // Cria as "caixas" dos grupos vazias
+                let grupos = Array.from({ length: numGrupos }, () => []);
+                
+                // Distribui os jogadores um por um (como se fosse dar cartas de um baralho)
+                // Isso garante que os grupos fiquem equilibrados (ex: 7 times = um grupo de 4 e um de 3)
+                sorteados.forEach((jogador, i) => {
+                    grupos[i % numGrupos].push(jogador);
+                });
+                // ------------------------------------------
+
                 grupos.forEach((grupo, index) => {
                     const letra = String.fromCharCode(65 + index);
                     html += `<div style="margin-bottom: 30px; background: #fff; padding: 15px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.05);">
                                 <h5 style="background: var(--dark); color: #fff; padding: 8px; display: flex; justify-content: space-between;">Grupo ${letra}
                                 <button onclick="atualizarClassificacao(this, '${letra}')" class="btn ${isLogged ? '' : 'hidden'}" style="background: var(--primary); padding: 5px;">🔄 Atualizar Classificação</button></h5>`;
+                    
                     for (let i = 0; i < grupo.length; i++) {
                         for (let j = i + 1; j < grupo.length; j++) {
                             let tA = grupo[i].jogador2 ? `${grupo[i].jogador1} & ${grupo[i].jogador2}` : grupo[i].jogador1;
@@ -672,7 +692,7 @@
                             let isResolvido = jogosSalvos[matchId] ? 'resolvido' : '';
                             let btnStyle = jogosSalvos[matchId] ? 'background: var(--primary); color: #fff; border: none;' : 'background: transparent; color: var(--primary); border: 1px solid var(--primary);';
                             let btnText = jogosSalvos[matchId] ? '✅ Salvo!' : '💾 Salvar Placar';
-                            let hideSave = isLogged ? '' : 'hidden'; // NOVA VARIÁVEL
+                            let hideSave = isLogged ? '' : 'hidden'; 
 
                             html += `<div class="match-box ${isResolvido}"><strong class="t-a" style="color: var(--primary-dark);">${tA}</strong>${gerarInputsPlacar(setsAberto, matchId)}<strong class="t-b" style="color: var(--dark);">${tB}</strong><br><button onclick="salvarPlacar(this, '${tA}', '${tB}')" class="btn ${hideSave}" style="${btnStyle}; margin-top: 10px;">${btnText}</button></div>`;
                         }
