@@ -76,45 +76,49 @@
         .standings-table tr:nth-child(1) td, .standings-table tr:nth-child(2) td { background-color: rgba(0, 210, 106, 0.1); }
         .standings-table td:first-child { text-align: left; font-weight: bold; }
 
-        /* Chaveamento Mata-Mata (ATUALIZADO PARA MOBILE) */
+        /* Chaveamento Mata-Mata (ATUALIZADO PARA MOBILE COM FORÇA TOTAL) */
+        
+        /* O container pai precisa deixar vazar para a lateral sem criar scroll na página inteira */
+        #mataMataUI {
+            width: 100%;
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+            padding-bottom: 15px; /* Espaço para a barra de rolagem não cortar a sombra */
+        }
+
         .bracket-container { 
-            display: flex; 
+            display: inline-flex; /* Inline-flex força o container a crescer de acordo com os filhos, destravando o scroll */
             gap: 30px; 
-            overflow-x: auto; /* Ativa o scroll lateral */
             margin-top: 30px; 
-            padding: 20px 0 30px 0; /* Espaço extra embaixo para a barra de rolagem */
+            padding: 20px 0; 
             border-top: 3px dashed #ccc; 
-            
-            /* A mágica para não quebrar a tela do celular: */
-            width: 100%; 
-            max-width: 100%; 
-            -webkit-overflow-scrolling: touch; /* Deslize macio (momentum) no iPhone e Android */
+            min-width: max-content; /* O segredo está aqui: impede que o container comprima os cards para caber na tela */
         }
         
         .bracket-round { 
             display: flex; 
             flex-direction: column; 
             justify-content: space-around; 
-            min-width: 280px; /* Garante que o card não esmague no celular */
+            width: 320px; /* Largura fixa e espaçosa para não amassar os nomes */
             gap: 20px; 
         }
         
         .bracket-round h4 { text-align: center; color: var(--white); background-color: var(--dark); padding: 10px; border-radius: 5px; margin-bottom: 10px; }
         .bracket-match { background: var(--white); border: 1px solid #ddd; border-radius: 8px; padding: 15px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); border-left: 5px solid var(--primary); position: relative; }
 
-        /* Estilizando a barra de rolagem para ficar com a cara do app */
-        .bracket-container::-webkit-scrollbar {
-            height: 8px; /* Altura da barra horizontal */
+        /* Estilizando a barra de rolagem (Fica no mataMataUI agora) */
+        #mataMataUI::-webkit-scrollbar {
+            height: 8px; 
         }
-        .bracket-container::-webkit-scrollbar-track {
-            background: #e0e0e0; /* Cor do fundo da barra */
+        #mataMataUI::-webkit-scrollbar-track {
+            background: #e0e0e0; 
             border-radius: 10px;
         }
-        .bracket-container::-webkit-scrollbar-thumb {
-            background: var(--primary); /* Cor da barrinha (verde do seu app) */
+        #mataMataUI::-webkit-scrollbar-thumb {
+            background: var(--primary); 
             border-radius: 10px;
         }
-        .bracket-container::-webkit-scrollbar-thumb:hover {
+        #mataMataUI::-webkit-scrollbar-thumb:hover {
             background: var(--primary-dark);
         }
     </style>
