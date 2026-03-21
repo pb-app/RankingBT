@@ -247,7 +247,10 @@
         </section>
 
         <section id="details-section" class="hidden">
-            <button id="btnVoltar" class="btn btn-outline" style="margin-bottom: 1rem;">⬅ Voltar para a Lista</button>
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                <button id="btnVoltar" class="btn btn-outline">⬅ Voltar para a Lista</button>
+                <button id="btnExcluirTorneio" class="btn hidden" style="background-color: #e74c3c; color: white; border: none;">🗑️ Excluir Campeonato</button>
+            </div>
             
             <h2 class="section-title" id="detalhe-nome-torneio">Nome do Torneio</h2>
             <p><strong id="detalhe-formato-torneio">Formato: </strong></p>
@@ -255,8 +258,8 @@
             <div class="panel-grid" id="painel-grid">
                 
                 <div class="panel-card" id="painel-inscritos">
-                    <h3>👥 Gerenciar Inscritos</h3>
-                    <div class="form-group" style="margin-top: 10px;">
+                    <h3>👥 Inscritos</h3>
+                    <div class="form-group" id="area-add-inscritos" style="margin-top: 10px;">
                         <input type="text" id="nomeJogador1" class="form-control" placeholder="Nome do Jogador 1 (Obrigatório)" style="margin-bottom: 8px;">
                         <input type="text" id="nomeJogador2" class="form-control" placeholder="Nome do Jogador 2 (Deixe em branco se for Simples)">
                         <button id="btnAddInscrito" class="btn" style="margin-top: 10px; width: 100%;">Adicionar Inscrição</button>
@@ -298,7 +301,7 @@
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
-        import { getFirestore, collection, addDoc, onSnapshot, query, orderBy, serverTimestamp, doc, updateDoc, getDocs, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
+        import { getFirestore, collection, addDoc, onSnapshot, query, orderBy, serverTimestamp, doc, updateDoc, getDocs, setDoc, getDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
         // NOVO IMPORT DE AUTENTICAÇÃO
         import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
 
@@ -437,6 +440,17 @@
             });
         }
 
+        // CONTROLE DE ACESSO: Oculta painéis de edição se for visitante
+            if (isLogged) {
+                document.getElementById('area-add-inscritos').classList.remove('hidden');
+                document.getElementById('btnGerarChaves').classList.remove('hidden');
+                document.getElementById('btnExcluirTorneio').classList.remove('hidden');
+            } else {
+                document.getElementById('area-add-inscritos').classList.add('hidden');
+                document.getElementById('btnGerarChaves').classList.add('hidden');
+                document.getElementById('btnExcluirTorneio').classList.add('hidden');
+            }
+
         document.getElementById('btnAddInscrito').addEventListener('click', async () => {
             const j1 = document.getElementById('nomeJogador1').value.trim();
             const j2 = document.getElementById('nomeJogador2').value.trim();
@@ -451,19 +465,21 @@
 
         function gerarInputsPlacar(formatoSets, matchId) {
             let dados = jogosSalvos[matchId] || { placarA: [], placarB: [] };
+            let bloqueio = isLogged ? "" : "disabled"; // SE NÃO TIVER LOGADO, TRAVA O INPUT
+
             if (formatoSets && formatoSets.includes("Melhor de 3")) {
                 return `
                     <div style="display: flex; flex-direction: column; align-items: center; gap: 5px; margin: 10px 0;">
                         ${[1, 2, 3].map((set, i) => `
                         <div style="display: flex; align-items: center; gap: 10px;">
                             <span style="font-size: 0.8rem; width: 45px; color: var(--gray);">${set===3 ? 'Tie' : set+'º Set'}</span>
-                            <input type="number" class="score-input p-timeA" min="0" oninput="liberarBotaoSalvar(this)" value="${dados.placarA[i] !== undefined ? dados.placarA[i] : ''}"> 
+                            <input type="number" class="score-input p-timeA" min="0" oninput="liberarBotaoSalvar(this)" value="${dados.placarA[i] !== undefined ? dados.placarA[i] : ''}" ${bloqueio}> 
                             <span style="font-weight: bold;">X</span> 
-                            <input type="number" class="score-input p-timeB" min="0" oninput="liberarBotaoSalvar(this)" value="${dados.placarB[i] !== undefined ? dados.placarB[i] : ''}">
+                            <input type="number" class="score-input p-timeB" min="0" oninput="liberarBotaoSalvar(this)" value="${dados.placarB[i] !== undefined ? dados.placarB[i] : ''}" ${bloqueio}>
                         </div>`).join('')}
                     </div>`;
             } else {
-                return `<div class="match-score"><input type="number" class="score-input p-timeA" min="0" oninput="liberarBotaoSalvar(this)" value="${dados.placarA[0] !== undefined ? dados.placarA[0] : ''}"> <span>X</span> <input type="number" class="score-input p-timeB" min="0" oninput="liberarBotaoSalvar(this)" value="${dados.placarB[0] !== undefined ? dados.placarB[0] : ''}"></div>`;
+                return `<div class="match-score"><input type="number" class="score-input p-timeA" min="0" oninput="liberarBotaoSalvar(this)" value="${dados.placarA[0] !== undefined ? dados.placarA[0] : ''}" ${bloqueio}> <span>X</span> <input type="number" class="score-input p-timeB" min="0" oninput="liberarBotaoSalvar(this)" value="${dados.placarB[0] !== undefined ? dados.placarB[0] : ''}" ${bloqueio}></div>`;
             }
         }
 
@@ -567,7 +583,7 @@
                     const letra = String.fromCharCode(65 + index);
                     html += `<div style="margin-bottom: 30px; background: #fff; padding: 15px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.05);">
                                 <h5 style="background: var(--dark); color: #fff; padding: 8px; display: flex; justify-content: space-between;">Grupo ${letra}
-                                <button onclick="atualizarClassificacao(this, '${letra}')" class="btn" style="background: var(--primary); padding: 5px;">🔄 Atualizar Classificação</button></h5>`;
+                                <button onclick="atualizarClassificacao(this, '${letra}')" class="btn ${isLogged ? '' : 'hidden'}" style="background: var(--primary); padding: 5px;">🔄 Atualizar Classificação</button></h5>`;
                     for (let i = 0; i < grupo.length; i++) {
                         for (let j = i + 1; j < grupo.length; j++) {
                             let tA = grupo[i].jogador2 ? `${grupo[i].jogador1} & ${grupo[i].jogador2}` : grupo[i].jogador1;
@@ -577,13 +593,14 @@
                             let isResolvido = jogosSalvos[matchId] ? 'resolvido' : '';
                             let btnStyle = jogosSalvos[matchId] ? 'background: var(--primary); color: #fff; border: none;' : 'background: transparent; color: var(--primary); border: 1px solid var(--primary);';
                             let btnText = jogosSalvos[matchId] ? '✅ Salvo!' : '💾 Salvar Placar';
+                            let hideSave = isLogged ? '' : 'hidden'; // NOVA VARIÁVEL
 
-                            html += `<div class="match-box ${isResolvido}"><strong class="t-a" style="color: var(--primary-dark);">${tA}</strong>${gerarInputsPlacar(setsAberto, matchId)}<strong class="t-b" style="color: var(--dark);">${tB}</strong><br><button onclick="salvarPlacar(this, '${tA}', '${tB}')" class="btn" style="${btnStyle}; margin-top: 10px;">${btnText}</button></div>`;
+                            html += `<div class="match-box ${isResolvido}"><strong class="t-a" style="color: var(--primary-dark);">${tA}</strong>${gerarInputsPlacar(setsAberto, matchId)}<strong class="t-b" style="color: var(--dark);">${tB}</strong><br><button onclick="salvarPlacar(this, '${tA}', '${tB}')" class="btn ${hideSave}" style="${btnStyle}; margin-top: 10px;">${btnText}</button></div>`;
                         }
                     }
                     html += `<div class="tabela-container"></div></div>`;
                 });
-                document.getElementById('btnMontarMataMata').classList.remove('hidden');
+                if (isLogged) document.getElementById('btnMontarMataMata').classList.remove('hidden');
             } else { html += '<h4>⚔️ Mata-Mata Apenas</h4>'; }
             
             chavesUI.innerHTML = html;
@@ -653,7 +670,7 @@
                 
                 rodada.forEach(jogo => {
                     let tA = jogo.timeA || "Aguardando...", tB = jogo.timeB || "Aguardando...";
-                    let hideBtn = (tA.includes("Aguardando") || tB.includes("Aguardando")) ? "hidden" : "";
+                    let hideBtn = (tA.includes("Aguardando") || tB.includes("Aguardando") || !isLogged) ? "hidden" : "";
                     let matchId = tA.replace(/\s+/g, '') + "_vs_" + tB.replace(/\s+/g, '');
                     
                     let isResolvido = jogosSalvos[matchId] ? 'resolvido' : '';
@@ -1002,6 +1019,20 @@
                 alert("Erro ao salvar pontos: " + e.message);
                 btn.textContent = "Tentar Novamente";
                 btn.disabled = false;
+            }
+        });
+
+        // --- FUNÇÃO PARA EXCLUIR CAMPEONATO ---
+        document.getElementById('btnExcluirTorneio').addEventListener('click', async () => {
+            if (confirm("🚨 CUIDADO! Tem certeza que deseja excluir este campeonato de vez? Essa ação não tem volta!")) {
+                try {
+                    await deleteDoc(doc(db, "campeonatos", torneioAbertoId));
+                    detailsSection.classList.add('hidden'); 
+                    listSection.classList.remove('hidden');
+                    alert("Campeonato excluído com sucesso!");
+                } catch (error) {
+                    alert("Erro ao excluir campeonato: " + error.message);
+                }
             }
         });
 
