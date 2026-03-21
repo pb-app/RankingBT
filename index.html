@@ -522,11 +522,14 @@
             document.getElementById('btnMostrarInscritos').classList.remove('hidden');
         });
 
+        // 1. ATUALIZADO: Renderizar Mata-Mata (agora lê a nova estrutura de objeto)
         function renderizarMataMata(fasesArray) {
             const mataMataUI = document.getElementById('mataMataUI');
             let html = '<div class="bracket-container">';
             
-            fasesArray.forEach((rodada, rodadaIndex) => {
+            fasesArray.forEach((rodadaData, rodadaIndex) => {
+                // Tenta ler '.jogos' (formato novo) ou fallback para o antigo
+                let rodada = rodadaData.jogos ? rodadaData.jogos : rodadaData; 
                 let nome = rodada.length === 4 ? "Quartas de Final" : (rodada.length === 2 ? "Semifinal" : (rodada.length === 1 ? "FINAL 🏆" : "Fase Eliminatória"));
                 html += `<div class="bracket-round"><h4>${nome}</h4>`;
                 
@@ -554,18 +557,17 @@
             mataMataUI.innerHTML = html + '</div>';
         }
 
+        // 2. ATUALIZADO: Avançar vencedor (também respeitando o novo formato)
         window.avancarVencedorMataMata = async function() {
             const rounds = document.querySelectorAll('.bracket-round');
             
             rounds.forEach((round, roundIndex) => {
                 let vencedores = [];
                 
-                // Pega todos os jogos já salvos/resolvidos desta rodada
                 round.querySelectorAll('.mata-mata-match.resolvido').forEach(jogo => {
                     let tA = jogo.querySelector('.t-a').innerText;
                     let tB = jogo.querySelector('.t-b').innerText;
                     
-                    // Tratamento especial para o "BYE" (Avança Direto)
                     if (tB.includes("BYE")) { vencedores.push(tA); return; }
                     if (tA.includes("BYE")) { vencedores.push(tB); return; }
 
@@ -578,26 +580,25 @@
                         if(va>vb) sA++; if(vb>va) sB++; 
                     });
                     
-                    // Descobre e guarda o vencedor da partida
                     vencedores.push((sA>sB || (sA===sB && gA>gB)) ? tA : tB);
                 });
 
-                // Preenche a PRÓXIMA rodada com os vencedores encontrados na ordem correta
                 if (window.fasesMataMata[roundIndex + 1] && vencedores.length > 0) {
                     let iv = 0;
-                    window.fasesMataMata[roundIndex + 1].forEach(pJogo => {
-                        // Agora ele reconstrói a próxima chave sem se perder nos índices
+                    // Procura pela lista de jogos dentro da próxima rodada
+                    let proxRodada = window.fasesMataMata[roundIndex + 1].jogos || window.fasesMataMata[roundIndex + 1];
+                    proxRodada.forEach(pJogo => {
                         pJogo.timeA = vencedores[iv] || "Aguardando..."; iv++;
                         pJogo.timeB = vencedores[iv] || "Aguardando..."; iv++;
                     });
                 }
             });
             
-            // Salva o progresso no Firebase e atualiza a tela
             await updateDoc(doc(db, "campeonatos", torneioAbertoId), { fasesMataMata: window.fasesMataMata });
             renderizarMataMata(window.fasesMataMata);
         };
 
+        // 3. ATUALIZADO: Montar o Mata-Mata (agora salva sem gerar erro de Nested Array)
         document.getElementById('btnMontarMataMata').addEventListener('click', async () => {
             let classif = [];
             document.querySelectorAll('.standings-table tbody').forEach(tb => {
@@ -620,12 +621,17 @@
             
             let rod1 = [];
             for (let i=0; i<classif.length; i+=2) { rod1.push({ timeA: classif[i], timeB: classif[i+1] || "Avança Direto (BYE)" }); }
-            window.fasesMataMata.push(rod1);
+            
+            // CORREÇÃO: Coloca o array dentro de um objeto { jogos: ... }
+            window.fasesMataMata.push({ jogos: rod1 }); 
 
             let prox = Math.floor(totalJogos / 2);
             while (prox >= 1) {
                 let rN = []; for(let i=0; i<prox; i++) rN.push({ timeA: null, timeB: null });
-                window.fasesMataMata.push(rN); prox = Math.floor(prox / 2);
+                
+                // CORREÇÃO: Coloca o array dentro de um objeto { jogos: ... }
+                window.fasesMataMata.push({ jogos: rN }); 
+                prox = Math.floor(prox / 2);
             }
             
             await updateDoc(doc(db, "campeonatos", torneioAbertoId), { fasesMataMata: window.fasesMataMata });
