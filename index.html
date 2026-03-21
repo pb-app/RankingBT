@@ -457,23 +457,71 @@
             inscritosUnsubscribe = onSnapshot(qInscritos, (snapshot) => {
                 listaUI.innerHTML = ''; inscritosAtuais = []; 
                 if(snapshot.empty) { listaUI.innerHTML = '<li>Nenhum inscrito.</li>'; return; }
+                
                 snapshot.forEach((docSnap) => {
-                    const dados = docSnap.data(); inscritosAtuais.push(dados); 
+                    const dados = docSnap.data(); 
+                    const idInscrito = docSnap.id; // Pega o ID no banco de dados
+                    inscritosAtuais.push(dados); 
+                    
                     const li = document.createElement('li');
-                    li.innerHTML = dados.jogador2 ? `🎾 <strong>${dados.jogador1}</strong> e <strong>${dados.jogador2}</strong>` : `🎾 <strong>${dados.jogador1}</strong>`;
+                    li.style.cssText = "display: flex; justify-content: space-between; align-items: center;";
+                    
+                    let nomes = dados.jogador2 ? `🎾 <strong>${dados.jogador1}</strong> e <strong>${dados.jogador2}</strong>` : `🎾 <strong>${dados.jogador1}</strong>`;
+                    
+                    // Cria o botão de excluir apenas se estiver logado
+                    let btnExcluir = isLogged ? `<button onclick="deletarInscrito('${idInscrito}')" class="btn btn-outline" style="padding: 2px 8px; font-size: 0.8rem; border-color: #e74c3c; color: #e74c3c;">🗑️ Excluir</button>` : '';
+
+                    li.innerHTML = `<span>${nomes}</span> ${btnExcluir}`;
                     listaUI.appendChild(li);
                 });
             });
         }
 
+        // --- FUNÇÃO PARA DELETAR UM INSCRITO ---
+        window.deletarInscrito = async function(idInscrito) {
+            if (torneioAbertoData.sorteados && torneioAbertoData.sorteados.length > 0) {
+                alert("🚨 As chaves já foram geradas! Exclua o torneio ou crie um novo para alterar inscritos.");
+                return;
+            }
+            if (confirm("Tem certeza que deseja remover esta inscrição?")) {
+                try {
+                    await deleteDoc(doc(db, "campeonatos", torneioAbertoId, "inscritos", idInscrito));
+                } catch (error) {
+                    alert("Erro ao remover: " + error.message);
+                }
+            }
+        };
+
         document.getElementById('btnAddInscrito').addEventListener('click', async () => {
             const j1 = document.getElementById('nomeJogador1').value.trim();
             const j2 = document.getElementById('nomeJogador2').value.trim();
             if (!j1) { alert("Preencha o Jogador 1!"); return; }
+
+            // --- TRAVA DE SEGURANÇA: NÃO PERMITIR NOMES REPETIDOS ---
+            if (j1 === j2) {
+                alert("🚨 O Jogador 1 e o Jogador 2 não podem ser a mesma pessoa!");
+                return;
+            }
+
+            let jaInscrito = false;
+            let nomeRepetido = "";
+            
+            inscritosAtuais.forEach(insc => {
+                if (insc.jogador1 === j1 || (insc.jogador2 && insc.jogador2 === j1)) { jaInscrito = true; nomeRepetido = j1; }
+                if (j2 !== "" && (insc.jogador1 === j2 || (insc.jogador2 && insc.jogador2 === j2))) { jaInscrito = true; nomeRepetido = j2; }
+            });
+
+            if (jaInscrito) {
+                alert(`🚨 Bloqueado: O jogador "${nomeRepetido}" já está inscrito neste campeonato!`);
+                return;
+            }
+            // --- FIM DA TRAVA ---
+
             document.getElementById('btnAddInscrito').disabled = true;
             try {
                 await addDoc(collection(db, "campeonatos", torneioAbertoId, "inscritos"), { jogador1: j1, jogador2: j2, dataCriacao: serverTimestamp() });
                 document.getElementById('nomeJogador1').value = ''; document.getElementById('nomeJogador2').value = '';
+                document.getElementById('nomeJogador1').focus(); // Volta o ponteiro pro primeiro input
             } catch (error) { alert("Erro ao inscrever."); } 
             finally { document.getElementById('btnAddInscrito').disabled = false; }
         });
