@@ -559,24 +559,41 @@
             
             rounds.forEach((round, roundIndex) => {
                 let vencedores = [];
+                
+                // Pega todos os jogos já salvos/resolvidos desta rodada
                 round.querySelectorAll('.mata-mata-match.resolvido').forEach(jogo => {
-                    let tA = jogo.querySelector('.t-a').innerText, tB = jogo.querySelector('.t-b').innerText;
+                    let tA = jogo.querySelector('.t-a').innerText;
+                    let tB = jogo.querySelector('.t-b').innerText;
+                    
+                    // Tratamento especial para o "BYE" (Avança Direto)
+                    if (tB.includes("BYE")) { vencedores.push(tA); return; }
+                    if (tA.includes("BYE")) { vencedores.push(tB); return; }
+
                     let iA = jogo.querySelectorAll('.p-timeA'), iB = jogo.querySelectorAll('.p-timeB');
                     let gA=0, gB=0, sA=0, sB=0;
                     
-                    iA.forEach((inp, i) => { let va=parseInt(inp.value)||0, vb=parseInt(iB[i].value)||0; gA+=va; gB+=vb; if(va>vb) sA++; if(vb>va) sB++; });
+                    iA.forEach((inp, i) => { 
+                        let va=parseInt(inp.value)||0, vb=parseInt(iB[i].value)||0; 
+                        gA+=va; gB+=vb; 
+                        if(va>vb) sA++; if(vb>va) sB++; 
+                    });
+                    
+                    // Descobre e guarda o vencedor da partida
                     vencedores.push((sA>sB || (sA===sB && gA>gB)) ? tA : tB);
                 });
 
+                // Preenche a PRÓXIMA rodada com os vencedores encontrados na ordem correta
                 if (window.fasesMataMata[roundIndex + 1] && vencedores.length > 0) {
                     let iv = 0;
                     window.fasesMataMata[roundIndex + 1].forEach(pJogo => {
-                        if (!pJogo.timeA || pJogo.timeA.includes("Aguardando")) { if(vencedores[iv]) { pJogo.timeA = vencedores[iv]; iv++; } }
-                        if (!pJogo.timeB || pJogo.timeB.includes("Aguardando")) { if(vencedores[iv]) { pJogo.timeB = vencedores[iv]; iv++; } }
+                        // Agora ele reconstrói a próxima chave sem se perder nos índices
+                        pJogo.timeA = vencedores[iv] || "Aguardando..."; iv++;
+                        pJogo.timeB = vencedores[iv] || "Aguardando..."; iv++;
                     });
                 }
             });
             
+            // Salva o progresso no Firebase e atualiza a tela
             await updateDoc(doc(db, "campeonatos", torneioAbertoId), { fasesMataMata: window.fasesMataMata });
             renderizarMataMata(window.fasesMataMata);
         };
