@@ -157,12 +157,18 @@
 
     <header>
         <h1>🎾 Beach Tennis Pro</h1>
+        
+        <div id="nav-menu" style="display:flex; gap: 15px; margin-left: 30px; margin-right: auto;">
+            <button id="btnAbaCampeonatos" class="btn" style="background: var(--white); color: var(--dark);">Campeonatos</button>
+            <button id="btnAbaRankings" class="btn btn-outline" style="color: var(--white); border-color: var(--white);">🏆 Ver Ranking</button>
+        </div>
+
         <div id="auth-area">
-            <button id="btnLogin" class="btn btn-outline">Fazer Login</button>
+            <button id="btnLogin" class="btn btn-outline" style="color: var(--white); border-color: var(--white);">Fazer Login</button>
             <div id="user-menu" class="hidden">
                 <span style="margin-right: 15px;">Olá, Organizador</span>
-                <button id="btnNewTournament" class="btn">Novo Torneio</button>
-                <button id="btnLogout" class="btn btn-outline" style="margin-left: 10px;">Sair</button>
+                <button id="btnNewTournament" class="btn" style="background: var(--white); color: var(--dark);">Novo Torneio</button>
+                <button id="btnLogout" class="btn btn-outline" style="margin-left: 10px; color: var(--white); border-color: var(--white);">Sair</button>
             </div>
         </div>
     </header>
@@ -208,6 +214,34 @@
         <section id="list-section">
             <h2 class="section-title">Campeonatos Abertos</h2>
             <div class="tournaments-grid" id="tournaments-container"></div>
+        </section>
+
+        <section id="ranking-section" class="hidden">
+            <h2 class="section-title">🏆 Ranking Geral</h2>
+            <div class="form-group" style="max-width: 300px; margin-bottom: 20px;">
+                <label>Filtrar por Categoria:</label>
+                <select id="filtroVisualRanking" class="form-control">
+                    <option value="ranking-geral">Ranking Geral (Simples)</option>
+                    <option value="ranking-duplas-fixas">Ranking Duplas Fixas</option>
+                    <option value="ranking-elite">Liga Beach Tennis Elite</option>
+                </select>
+            </div>
+            
+            <div style="background: var(--white); border-radius: 10px; padding: 20px; box-shadow: 0 4px 6px rgba(0,0,0,0.05);">
+                <table class="standings-table" style="margin: 0;">
+                    <thead>
+                        <tr>
+                            <th style="width: 50px;">Pos</th>
+                            <th style="text-align: left;">Jogador / Atleta</th>
+                            <th>Pontos</th>
+                            <th>Torneios</th>
+                        </tr>
+                    </thead>
+                    <tbody id="rankingTabelaBody">
+                        <tr><td colspan="4" style="padding: 20px;">Selecione um ranking para carregar...</td></tr>
+                    </tbody>
+                </table>
+            </div>
         </section>
 
         <section id="details-section" class="hidden">
@@ -833,6 +867,29 @@
                 podioUI.classList.add('hidden');
             }
         }
+
+        // --- NAVEGAÇÃO ENTRE CAMPEONATOS E RANKING ---
+        const btnAbaCampeonatos = document.getElementById('btnAbaCampeonatos');
+        const btnAbaRankings = document.getElementById('btnAbaRankings');
+        const rankingSection = document.getElementById('ranking-section');
+
+        btnAbaCampeonatos.addEventListener('click', () => {
+            btnAbaCampeonatos.style.background = 'var(--white)'; btnAbaCampeonatos.style.color = 'var(--dark)';
+            btnAbaRankings.style.background = 'transparent'; btnAbaRankings.style.color = 'var(--white)';
+            listSection.classList.remove('hidden');
+            detailsSection.classList.add('hidden');
+            createSection.style.display = 'none';
+            rankingSection.classList.add('hidden');
+        });
+
+        btnAbaRankings.addEventListener('click', () => {
+            btnAbaRankings.style.background = 'var(--white)'; btnAbaRankings.style.color = 'var(--dark)';
+            btnAbaCampeonatos.style.background = 'transparent'; btnAbaCampeonatos.style.color = 'var(--white)';
+            listSection.classList.add('hidden');
+            detailsSection.classList.add('hidden');
+            createSection.style.display = 'none';
+            rankingSection.classList.remove('hidden');
+        });
 
         updateAuthUI();
     </script>
