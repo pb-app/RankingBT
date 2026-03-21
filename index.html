@@ -49,10 +49,18 @@
 
         /* Painel do Torneio */
         #details-section { background-color: var(--white); padding: 2rem; border-radius: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
-        .panel-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 2rem; margin-top: 1.5rem; }
+        .panel-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 2rem; margin-top: 1.5rem; transition: all 0.3s ease; }
         .panel-card { background-color: var(--light); padding: 1.5rem; border-radius: 8px; border: 1px solid #ddd; }
         .lista-inscritos { list-style: none; margin-top: 1rem; }
         .lista-inscritos li { background: var(--white); padding: 0.5rem; margin-bottom: 0.5rem; border-radius: 5px; border-left: 3px solid var(--primary); }
+
+        /* Modificador para expandir a tela de chaves */
+        .grid-expandido { grid-template-columns: 1fr !important; }
+
+        /* Responsividade para Celular */
+        @media (max-width: 768px) {
+            .panel-grid { grid-template-columns: 1fr !important; }
+        }
 
         /* Placares */
         .match-box { background-color: #f9f9f9; padding: 15px; margin: 10px 0; border-radius: 8px; text-align: center; border: 1px solid #ddd; border-left: 5px solid var(--primary-dark); }
@@ -138,8 +146,9 @@
             <h2 class="section-title" id="detalhe-nome-torneio">Nome do Torneio</h2>
             <p><strong id="detalhe-formato-torneio">Formato: </strong></p>
 
-            <div class="panel-grid">
-                <div class="panel-card">
+            <div class="panel-grid" id="painel-grid">
+                
+                <div class="panel-card" id="painel-inscritos">
                     <h3>👥 Gerenciar Inscritos</h3>
                     <div class="form-group" style="margin-top: 10px;">
                         <input type="text" id="nomeJogador1" class="form-control" placeholder="Nome do Jogador 1 (Obrigatório)" style="margin-bottom: 8px;">
@@ -149,7 +158,9 @@
                     <ul class="lista-inscritos" id="listaInscritosUI"></ul>
                 </div>
 
-                <div class="panel-card">
+                <div class="panel-card" id="painel-chaves">
+                    <button id="btnMostrarInscritos" class="btn btn-outline hidden" style="margin-bottom: 15px; width: 100%;">👀 Ver/Editar Lista de Inscritos</button>
+
                     <h3>🏆 Chaves e Grupos</h3>
                     <p style="color: var(--gray); margin-bottom: 15px; font-size: 0.9rem;">
                         Adicione os jogadores primeiro para depois gerar os confrontos.
@@ -172,7 +183,6 @@
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
-        // --- ATUALIZADO: Importações novas (doc, updateDoc, setDoc, getDocs) para poder ler e salvar o estado do torneio ---
         import { getFirestore, collection, addDoc, onSnapshot, query, orderBy, serverTimestamp, doc, updateDoc, getDocs, setDoc } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
 
         const firebaseConfig = {
@@ -187,16 +197,16 @@
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
 
-        // --- VARIÁVEIS GLOBAIS DE ESTADO ---
+        // Variáveis Globais
         let isLogged = false;
         let torneioAbertoId = null; 
-        let torneioAbertoData = null; // Guarda tudo do torneio atual
+        let torneioAbertoData = null; 
         let formatoAberto = ""; 
         let setsAberto = ""; 
         let inscritosUnsubscribe = null; 
         let inscritosAtuais = []; 
         window.fasesMataMata = []; 
-        let jogosSalvos = {}; // Memória para preencher os placares que vêm do banco
+        let jogosSalvos = {}; 
 
         // Elementos DOM
         const btnLogin = document.getElementById('btnLogin');
@@ -226,14 +236,13 @@
                 const camp = docSnap.data();
                 const card = document.createElement('div');
                 card.className = 'tournament-card';
-                // Passa o objeto "camp" inteiro para a função de abrir
                 card.onclick = () => abrirPainelTorneio(docSnap.id, camp);
                 card.innerHTML = `<h3>${camp.nome}</h3><p>Ranking: ${camp.ranking}</p><p>Formato: ${camp.formato}</p><span class="badge">🎾 ${camp.sets}</span>`;
                 tournamentsContainer.appendChild(card);
             });
         });
 
-        // --- NOVA LÓGICA DE ABRIR O PAINEL: CARREGA O QUE FOI SALVO ---
+        // Abrir Painel do Torneio
         function abrirPainelTorneio(id, camp) {
             torneioAbertoId = id; 
             torneioAbertoData = camp;
@@ -244,15 +253,25 @@
             document.getElementById('detalhe-formato-torneio').textContent = `Formato: ${camp.formato}`;
             listSection.classList.add('hidden'); createSection.style.display = 'none'; detailsSection.classList.remove('hidden');
             
+            // --- RESET DA EXIBIÇÃO DA TELA DE INSCRITOS ---
+            document.getElementById('painel-inscritos').classList.remove('hidden');
+            document.getElementById('painel-grid').classList.remove('grid-expandido');
+            document.getElementById('btnMostrarInscritos').classList.add('hidden');
+
             document.getElementById('chavesGeradasUI').innerHTML = ''; 
             document.getElementById('mataMataUI').innerHTML = '';
             document.getElementById('btnMontarMataMata').classList.add('hidden');
             
             carregarInscritos(id);
 
-            // Busca os placares e depois remonta a tela se já tiver sorteio salvo
             carregarJogosSalvos(id).then(() => {
                 if (camp.sorteados && camp.sorteados.length > 0) {
+                    
+                    // Se o torneio já foi sorteado antes, já abre a tela ocupando 100% do espaço
+                    document.getElementById('painel-inscritos').classList.add('hidden');
+                    document.getElementById('painel-grid').classList.add('grid-expandido');
+                    document.getElementById('btnMostrarInscritos').classList.remove('hidden');
+
                     renderizarGrupos(camp.sorteados);
                 }
                 if (camp.fasesMataMata && camp.fasesMataMata.length > 0) {
@@ -261,6 +280,13 @@
                 }
             });
         }
+
+        // Função para botão ver/editar inscritos (reabre a coluna)
+        document.getElementById('btnMostrarInscritos').addEventListener('click', () => {
+            document.getElementById('painel-inscritos').classList.remove('hidden');
+            document.getElementById('painel-grid').classList.remove('grid-expandido');
+            document.getElementById('btnMostrarInscritos').classList.add('hidden');
+        });
 
         document.getElementById('btnVoltar').addEventListener('click', () => {
             detailsSection.classList.add('hidden'); listSection.classList.remove('hidden');
@@ -305,10 +331,8 @@
             finally { document.getElementById('btnAddInscrito').disabled = false; }
         });
 
-        // Utilitário de Placares que já injeta os números salvos no visual!
         function gerarInputsPlacar(formatoSets, matchId) {
             let dados = jogosSalvos[matchId] || { placarA: [], placarB: [] };
-
             if (formatoSets && formatoSets.includes("Melhor de 3")) {
                 return `
                     <div style="display: flex; flex-direction: column; align-items: center; gap: 5px; margin: 10px 0;">
@@ -340,7 +364,6 @@
             }
         };
 
-        // --- SALVAR PLACAR (AGORA ELE ATUALIZA O MESMO JOGO EM VEZ DE DUPLICAR) ---
         window.salvarPlacar = async function(botao, timeA, timeB) {
             const matchBox = botao.closest('.match-box') || botao.closest('.bracket-match');
             const isMataMata = matchBox.classList.contains('mata-mata-match');
@@ -358,18 +381,13 @@
             if (sA > sB || (sA === sB && gA > gB)) vencedor = timeA;
             else if (sB > sA || (sB === sA && gB > gA)) vencedor = timeB;
 
-            // Cria um ID único para esse jogo (ex: Ageu&Driele_vs_Joao&Maria)
             let matchId = timeA.replace(/\s+/g, '') + "_vs_" + timeB.replace(/\s+/g, '');
-
             botao.textContent = 'Salvando...'; botao.disabled = true;
 
             try {
                 let dadosDoJogo = { timeA, timeB, placarA: pA, placarB: pB, vencedor, fase: isMataMata ? "Eliminatória" : "Grupos", dataRegistro: serverTimestamp() };
-                
-                // setDoc sobrescreve ou cria, evitando duplicatas!
                 await setDoc(doc(db, "campeonatos", torneioAbertoId, "jogos", matchId), dadosDoJogo);
-                
-                jogosSalvos[matchId] = dadosDoJogo; // Atualiza memória rápida
+                jogosSalvos[matchId] = dadosDoJogo; 
 
                 botao.textContent = '✅ Salvo!'; botao.style.background = 'var(--primary)'; botao.style.color = '#fff'; botao.style.border = 'none';
                 matchBox.classList.add('resolvido');
@@ -421,7 +439,6 @@
             botao.textContent = '🔄 Atualizar Classificação';
         };
 
-        // --- FUNÇÃO PARA RENDERIZAR GRUPOS APÓS SORTEIO ---
         function renderizarGrupos(sorteados) {
             const chavesUI = document.getElementById('chavesGeradasUI');
             let html = '';
@@ -453,12 +470,10 @@
             
             chavesUI.innerHTML = html;
 
-            // Se tem mata mata já criado, trava a edição dos grupos
             if (torneioAbertoData.fasesMataMata && torneioAbertoData.fasesMataMata.length > 0) {
                 travarGrupos();
             }
 
-            // Simula clique rápido para mostrar as tabelas caso já tenham jogos
             setTimeout(() => {
                 document.querySelectorAll('.tabela-container').forEach(container => {
                     let btn = container.parentElement.querySelector('h5 button');
@@ -478,11 +493,10 @@
             });
         }
 
-        // --- CLIQUE PARA GERAR CHAVES: AGORA SALVA NO FIREBASE ---
+        // --- AQUI ACONTECE A MÁGICA DE OCULTAR A COLUNA AO GERAR CHAVES ---
         document.getElementById('btnGerarChaves').addEventListener('click', async () => {
             if (inscritosAtuais.length < 2) return;
             
-            // Aviso de segurança se já houver torneio em andamento
             if (torneioAbertoData.sorteados && torneioAbertoData.sorteados.length > 0) {
                 if (!confirm("O torneio já foi sorteado! Gerar novamente vai APAGAR e misturar o chaveamento. Tem certeza?")) return;
             }
@@ -491,20 +505,23 @@
             
             document.getElementById('btnGerarChaves').textContent = "Gerando e Salvando...";
             
-            // Salva as chaves no banco!
             await updateDoc(doc(db, "campeonatos", torneioAbertoId), { sorteados: sorteados, fasesMataMata: [] });
             
             torneioAbertoData.sorteados = sorteados;
             torneioAbertoData.fasesMataMata = [];
             window.fasesMataMata = [];
-            jogosSalvos = {}; // Limpa memória local
+            jogosSalvos = {}; 
 
             renderizarGrupos(sorteados);
             document.getElementById('mataMataUI').innerHTML = '';
             document.getElementById('btnGerarChaves').innerHTML = "⚙️ Gerar Chaves / Grupos";
+
+            // Oculta inscrições e expande a área de chaves
+            document.getElementById('painel-inscritos').classList.add('hidden');
+            document.getElementById('painel-grid').classList.add('grid-expandido');
+            document.getElementById('btnMostrarInscritos').classList.remove('hidden');
         });
 
-        // --- RENDERIZAR MATA MATA ---
         function renderizarMataMata(fasesArray) {
             const mataMataUI = document.getElementById('mataMataUI');
             let html = '<div class="bracket-container">';
@@ -537,7 +554,6 @@
             mataMataUI.innerHTML = html + '</div>';
         }
 
-        // --- AVANÇAR VENCEDOR: AGORA SALVA NO FIREBASE ---
         window.avancarVencedorMataMata = async function() {
             const rounds = document.querySelectorAll('.bracket-round');
             
@@ -561,12 +577,10 @@
                 }
             });
             
-            // Salva o funil no banco para não perder se atualizar a página
             await updateDoc(doc(db, "campeonatos", torneioAbertoId), { fasesMataMata: window.fasesMataMata });
             renderizarMataMata(window.fasesMataMata);
         };
 
-        // --- GERAR MATA-MATA (SALVA NO BANCO) ---
         document.getElementById('btnMontarMataMata').addEventListener('click', async () => {
             let classif = [];
             document.querySelectorAll('.standings-table tbody').forEach(tb => {
@@ -581,7 +595,7 @@
                 if(!confirm("O Mata-Mata já foi gerado! Quer sortear e sobrescrever?")) return;
             }
 
-            travarGrupos(); // Trava a edição
+            travarGrupos(); 
             classif.sort(() => Math.random() - 0.5); 
             
             window.fasesMataMata = [];
@@ -597,7 +611,6 @@
                 window.fasesMataMata.push(rN); prox = Math.floor(prox / 2);
             }
             
-            // Salva as chaves no banco!
             await updateDoc(doc(db, "campeonatos", torneioAbertoId), { fasesMataMata: window.fasesMataMata });
             torneioAbertoData.fasesMataMata = window.fasesMataMata;
             
