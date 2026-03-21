@@ -385,6 +385,17 @@
             
             carregarInscritos(id);
 
+            // CONTROLE DE ACESSO: Oculta painéis de edição se for visitante
+            if (isLogged) {
+                document.getElementById('area-add-inscritos').classList.remove('hidden');
+                document.getElementById('btnGerarChaves').classList.remove('hidden');
+                document.getElementById('btnExcluirTorneio').classList.remove('hidden');
+            } else {
+                document.getElementById('area-add-inscritos').classList.add('hidden');
+                document.getElementById('btnGerarChaves').classList.add('hidden');
+                document.getElementById('btnExcluirTorneio').classList.add('hidden');
+            }
+
             carregarJogosSalvos(id).then(() => {
                 if (camp.sorteados && camp.sorteados.length > 0) {
                     
@@ -439,17 +450,6 @@
                 });
             });
         }
-
-        // CONTROLE DE ACESSO: Oculta painéis de edição se for visitante
-            if (isLogged) {
-                document.getElementById('area-add-inscritos').classList.remove('hidden');
-                document.getElementById('btnGerarChaves').classList.remove('hidden');
-                document.getElementById('btnExcluirTorneio').classList.remove('hidden');
-            } else {
-                document.getElementById('area-add-inscritos').classList.add('hidden');
-                document.getElementById('btnGerarChaves').classList.add('hidden');
-                document.getElementById('btnExcluirTorneio').classList.add('hidden');
-            }
 
         document.getElementById('btnAddInscrito').addEventListener('click', async () => {
             const j1 = document.getElementById('nomeJogador1').value.trim();
