@@ -233,6 +233,8 @@
                     </button>
 
                     <div id="mataMataUI"></div>
+                    
+                    <div id="podioUI" class="hidden"></div>
                 </div>
             </div>
         </section>
@@ -612,6 +614,10 @@
             });
             
             mataMataUI.innerHTML = html + '</div>';
+            
+            // Ativa o cálculo do pódio assim que o mata-mata carregar na tela
+            verificarEGerarPodio(fasesArray);
+        }
         }
 
         // 2. ATUALIZADO: Avançar vencedor (também respeitando o novo formato)
@@ -716,6 +722,61 @@
         btnLogout.addEventListener('click', () => { isLogged = false; updateAuthUI(); detailsSection.classList.add('hidden'); listSection.classList.remove('hidden'); });
         btnNewTournament.addEventListener('click', () => { createSection.style.display = 'block'; detailsSection.classList.add('hidden'); listSection.classList.remove('hidden'); });
         document.getElementById('btnCancelCreate').addEventListener('click', () => { createSection.style.display = 'none'; form.reset(); });
+
+        // --- FUNÇÃO PARA CALCULAR E EXIBIR O PÓDIO FINAL ---
+        function verificarEGerarPodio(fasesArray) {
+            const podioUI = document.getElementById('podioUI');
+            if (!fasesArray || fasesArray.length === 0) return;
+
+            // Pega a Final (última rodada) e a Semifinal (penúltima)
+            let finalRound = fasesArray[fasesArray.length - 1];
+            let semiRound = fasesArray.length >= 2 ? fasesArray[fasesArray.length - 2] : null;
+
+            let finalMatch = finalRound.jogos ? finalRound.jogos[0] : finalRound[0];
+            if (!finalMatch) return;
+
+            let tA = finalMatch.timeA;
+            let tB = finalMatch.timeB;
+            
+            // Se a final ainda não tem os dois times, esconde o pódio e encerra
+            if (!tA || !tB || tA.includes("Aguardando") || tB.includes("Aguardando")) {
+                podioUI.classList.add('hidden');
+                return;
+            }
+
+            let finalId = tA.replace(/\s+/g, '') + "_vs_" + tB.replace(/\s+/g, '');
+            let jogoFinalSalvo = jogosSalvos[finalId];
+
+            // Se o placar da Final já foi salvo e temos um vencedor!
+            if (jogoFinalSalvo && jogoFinalSalvo.vencedor) {
+                let campeao = jogoFinalSalvo.vencedor;
+                let vice = (campeao === tA) ? tB : tA;
+                let terceiro = "-";
+
+                // Puxa o 3º Colocado: quem perdeu para o CAMPEÃO na Semifinal
+                if (semiRound) {
+                    let jogosSemi = semiRound.jogos ? semiRound.jogos : semiRound;
+                    let jogoDoCampeaoNaSemi = jogosSemi.find(j => j.timeA === campeao || j.timeB === campeao);
+                    
+                    if (jogoDoCampeaoNaSemi) {
+                        terceiro = (jogoDoCampeaoNaSemi.timeA === campeao) ? jogoDoCampeaoNaSemi.timeB : jogoDoCampeaoNaSemi.timeA;
+                    }
+                }
+
+                // Desenha o Card do Pódio na tela (com visual premium)
+                podioUI.classList.remove('hidden');
+                podioUI.innerHTML = `
+                    <div style="background: linear-gradient(135deg, var(--dark), #333); color: var(--white); padding: 20px; border-radius: 10px; text-align: center; box-shadow: 0 4px 6px rgba(0,0,0,0.2); border-top: 5px solid #ffd700; margin-top: 40px; margin-bottom: 20px;">
+                        <h3 style="margin-bottom: 20px; color: #fff; border-bottom: 1px solid #555; padding-bottom: 10px;">🏆 Pódio do Campeonato</h3>
+                        <div style="margin: 15px 0; color: #ffd700; font-size: 1.6rem; font-weight: bold;">🥇 1º Lugar: <br><span style="color:#fff">${campeao}</span></div>
+                        <div style="margin: 15px 0; color: #c0c0c0; font-size: 1.3rem; font-weight: bold;">🥈 2º Lugar: <br><span style="color:#fff">${vice}</span></div>
+                        <div style="margin: 15px 0; color: #cd7f32; font-size: 1.3rem; font-weight: bold;">🥉 3º Lugar: <br><span style="color:#fff">${terceiro}</span></div>
+                    </div>
+                `;
+            } else {
+                podioUI.classList.add('hidden');
+            }
+        }
 
         updateAuthUI();
     </script>
