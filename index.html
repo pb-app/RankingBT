@@ -93,6 +93,8 @@
             -webkit-overflow-scrolling: touch;
         }
 
+        
+
         /* Chaveamento Mata-Mata (ATUALIZADO PARA MOBILE COM FORÇA TOTAL) */
         
         /* O container pai precisa deixar vazar para a lateral sem criar scroll na página inteira */
@@ -282,6 +284,13 @@
                     <div id="mataMataUI"></div>
                     
                     <div id="podioUI" class="hidden"></div>
+                    
+                    <button id="btnEncerrarTorneio" class="btn hidden" style="width: 100%; margin-top: 20px; background-color: #e74c3c; color: #fff; font-size: 1.1rem; padding: 15px;">
+                        🎯 Encerrar Torneio e Enviar Pontos p/ Ranking
+                    </button>
+                    
+                    
+                    <div id="podioUI" class="hidden"></div>
                 </div>
             </div>
         </section>
@@ -289,7 +298,7 @@
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
-        import { getFirestore, collection, addDoc, onSnapshot, query, orderBy, serverTimestamp, doc, updateDoc, getDocs, setDoc } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
+        import { getFirestore, collection, addDoc, onSnapshot, query, orderBy, serverTimestamp, doc, updateDoc, getDocs, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
         // NOVO IMPORT DE AUTENTICAÇÃO
         import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
 
@@ -863,6 +872,25 @@
                         <div style="margin: 15px 0; color: #cd7f32; font-size: 1.3rem; font-weight: bold;">🥉 3º Lugar: <br><span style="color:#fff">${terceiro}</span></div>
                     </div>
                 `;
+
+                // MOSTRA O BOTÃO DE ENCERRAR (Se o torneio não estiver encerrado e for o organizador)
+                if (isLogged && torneioAbertoData.status !== "encerrado") {
+                    document.getElementById('btnEncerrarTorneio').classList.remove('hidden');
+                } else {
+                    document.getElementById('btnEncerrarTorneio').classList.add('hidden');
+                }
+            } else {
+                podioUI.classList.add('hidden');
+                document.getElementById('btnEncerrarTorneio').classList.add('hidden');
+            }
+        }
+                    <div style="background: linear-gradient(135deg, var(--dark), #333); color: var(--white); padding: 20px; border-radius: 10px; text-align: center; box-shadow: 0 4px 6px rgba(0,0,0,0.2); border-top: 5px solid #ffd700; margin-top: 40px; margin-bottom: 20px;">
+                        <h3 style="margin-bottom: 20px; color: #fff; border-bottom: 1px solid #555; padding-bottom: 10px;">🏆 Pódio do Campeonato</h3>
+                        <div style="margin: 15px 0; color: #ffd700; font-size: 1.6rem; font-weight: bold;">🥇 1º Lugar: <br><span style="color:#fff">${campeao}</span></div>
+                        <div style="margin: 15px 0; color: #c0c0c0; font-size: 1.3rem; font-weight: bold;">🥈 2º Lugar: <br><span style="color:#fff">${vice}</span></div>
+                        <div style="margin: 15px 0; color: #cd7f32; font-size: 1.3rem; font-weight: bold;">🥉 3º Lugar: <br><span style="color:#fff">${terceiro}</span></div>
+                    </div>
+                `;
             } else {
                 podioUI.classList.add('hidden');
             }
@@ -890,6 +918,140 @@
             createSection.style.display = 'none';
             rankingSection.classList.remove('hidden');
         });
+
+            // --- LÓGICA DE DISTRIBUIÇÃO DE PONTOS E ENCERRAMENTO ---
+        document.getElementById('btnEncerrarTorneio').addEventListener('click', async () => {
+            if (!confirm("🚨 ATENÇÃO! Tem certeza? Isso vai encerrar o torneio e somar os pontos no ranking. Essa ação NÃO pode ser desfeita!")) return;
+
+            const btn = document.getElementById('btnEncerrarTorneio');
+            btn.textContent = "Calculando e Enviando Pontos..."; 
+            btn.disabled = true;
+
+            let rankingNome = torneioAbertoData.ranking; 
+            let pontuacaoTimes = {};
+            
+            // 1. Dá 5 pontos de participação para todos os inscritos
+            inscritosAtuais.forEach(insc => {
+                let nomeTime = insc.jogador2 ? `${insc.jogador1} & ${insc.jogador2}` : insc.jogador1;
+                pontuacaoTimes[nomeTime] = 5;
+            });
+
+            // 2. Analisa o Mata-Mata para subir os pontos de quem avançou
+            window.fasesMataMata.forEach((faseData, index) => {
+                let jogos = faseData.jogos ? faseData.jogos : faseData;
+                let isFinal = index === window.fasesMataMata.length - 1;
+                let isSemi = index === window.fasesMataMata.length - 2;
+                let isQuartas = index === window.fasesMataMata.length - 3;
+
+                jogos.forEach(jogo => {
+                    let matchId = jogo.timeA.replace(/\s+/g, '') + "_vs_" + jogo.timeB.replace(/\s+/g, '');
+                    let salvo = jogosSalvos[matchId];
+                    if (salvo && salvo.vencedor) {
+                        let vencedor = salvo.vencedor;
+                        let perdedor = (vencedor === jogo.timeA) ? jogo.timeB : jogo.timeA;
+
+                        if (isQuartas) {
+                            if(pontuacaoTimes[vencedor] < 30) pontuacaoTimes[vencedor] = 30; // Garante a Semi
+                            if(pontuacaoTimes[perdedor] < 15) pontuacaoTimes[perdedor] = 15; // Caiu nas Quartas
+                        }
+                        if (isSemi) {
+                            if(pontuacaoTimes[vencedor] < 70) pontuacaoTimes[vencedor] = 70; // Garante a Final
+                        }
+                        if (isFinal) {
+                            pontuacaoTimes[vencedor] = 100; // Campeão
+                            pontuacaoTimes[perdedor] = 70;  // Vice
+                            
+                            // Acha o 3º Lugar (perdeu pro campeão na Semi)
+                            if (window.fasesMataMata.length >= 2) {
+                                let semiJogos = window.fasesMataMata[window.fasesMataMata.length - 2].jogos || window.fasesMataMata[window.fasesMataMata.length - 2];
+                                let jogoDoCampeaoNaSemi = semiJogos.find(j => j.timeA === vencedor || j.timeB === vencedor);
+                                if (jogoDoCampeaoNaSemi) {
+                                    let terceiro = (jogoDoCampeaoNaSemi.timeA === vencedor) ? jogoDoCampeaoNaSemi.timeB : jogoDoCampeaoNaSemi.timeA;
+                                    pontuacaoTimes[terceiro] = 50; // 3º Colocado
+                                }
+                            }
+                        }
+                    }
+                });
+            });
+
+            // 3. Separa as Duplas em Jogadores Individuais
+            let pontuacaoIndividual = {};
+            for (let time in pontuacaoTimes) {
+                let pontos = pontuacaoTimes[time];
+                let jogadores = time.split('&').map(j => j.trim()); // Divide pelo "&"
+                jogadores.forEach(jogador => {
+                    if (jogador && !jogador.includes("BYE") && !jogador.includes("Aguardando")) {
+                        pontuacaoIndividual[jogador] = pontos;
+                    }
+                });
+            }
+
+            // 4. Salva no Banco de Dados (Ranking)
+            try {
+                for (let jogador in pontuacaoIndividual) {
+                    let pontosGanhos = pontuacaoIndividual[jogador];
+                    let safeId = jogador.replace(/\s+/g, '_').toLowerCase(); // Ex: "ageu silva" vira "ageu_silva"
+                    let ref = doc(db, "rankings", rankingNome, "jogadores", safeId);
+                    
+                    let snap = await getDoc(ref);
+                    if (snap.exists()) {
+                        let dados = snap.data();
+                        await setDoc(ref, { nome: jogador, pontos: dados.pontos + pontosGanhos, torneios: dados.torneios + 1 });
+                    } else {
+                        await setDoc(ref, { nome: jogador, pontos: pontosGanhos, torneios: 1 });
+                    }
+                }
+
+                // 5. Tranca o torneio para não somar duas vezes
+                await updateDoc(doc(db, "campeonatos", torneioAbertoId), { status: "encerrado" });
+                torneioAbertoData.status = "encerrado";
+                btn.textContent = "✅ Torneio Encerrado e Pontos Salvos!";
+                btn.style.backgroundColor = "var(--primary-dark)";
+                
+            } catch(e) {
+                alert("Erro ao salvar pontos: " + e.message);
+                btn.textContent = "Tentar Novamente";
+                btn.disabled = false;
+            }
+        });
+
+        // --- RENDERIZAR A TELA DO RANKING ---
+        const filtroRanking = document.getElementById('filtroVisualRanking');
+        const tbodyRanking = document.getElementById('rankingTabelaBody');
+
+        async function carregarRanking() {
+            let rankingNome = filtroRanking.options[filtroRanking.selectedIndex].text;
+            tbodyRanking.innerHTML = '<tr><td colspan="4" style="padding: 20px;">Carregando ranking...</td></tr>';
+            
+            const snap = await getDocs(collection(db, "rankings", rankingNome, "jogadores"));
+            let lista = [];
+            snap.forEach(doc => lista.push(doc.data()));
+            
+            // Ordena do maior pro menor
+            lista.sort((a,b) => b.pontos - a.pontos); 
+            
+            if (lista.length === 0) {
+                tbodyRanking.innerHTML = '<tr><td colspan="4" style="padding: 20px;">Nenhum jogador pontuou neste ranking ainda.</td></tr>';
+                return;
+            }
+
+            let html = '';
+            lista.forEach((jog, index) => {
+                let icone = index === 0 ? '🥇' : (index === 1 ? '🥈' : (index === 2 ? '🥉' : (index + 1 + 'º')));
+                html += `<tr>
+                    <td><strong>${icone}</strong></td>
+                    <td style="text-align:left;"><strong>${jog.nome}</strong></td>
+                    <td style="color: var(--primary-dark); font-size: 1.1rem;"><strong>${jog.pontos}</strong></td>
+                    <td>${jog.torneios}</td>
+                </tr>`;
+            });
+            tbodyRanking.innerHTML = html;
+        }
+
+        filtroRanking.addEventListener('change', carregarRanking);
+        // Atualiza o ranking quando você clica no botão "Ver Ranking" do topo
+        document.getElementById('btnAbaRankings').addEventListener('click', carregarRanking);
 
         updateAuthUI();
     </script>
