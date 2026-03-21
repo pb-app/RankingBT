@@ -76,11 +76,47 @@
         .standings-table tr:nth-child(1) td, .standings-table tr:nth-child(2) td { background-color: rgba(0, 210, 106, 0.1); }
         .standings-table td:first-child { text-align: left; font-weight: bold; }
 
-        /* Chaveamento Mata-Mata */
-        .bracket-container { display: flex; gap: 30px; overflow-x: auto; margin-top: 30px; padding: 20px 0; border-top: 3px dashed #ccc; }
-        .bracket-round { display: flex; flex-direction: column; justify-content: space-around; min-width: 280px; gap: 20px; }
+        /* Chaveamento Mata-Mata (ATUALIZADO PARA MOBILE) */
+        .bracket-container { 
+            display: flex; 
+            gap: 30px; 
+            overflow-x: auto; /* Ativa o scroll lateral */
+            margin-top: 30px; 
+            padding: 20px 0 30px 0; /* Espaço extra embaixo para a barra de rolagem */
+            border-top: 3px dashed #ccc; 
+            
+            /* A mágica para não quebrar a tela do celular: */
+            width: 100%; 
+            max-width: 100%; 
+            -webkit-overflow-scrolling: touch; /* Deslize macio (momentum) no iPhone e Android */
+        }
+        
+        .bracket-round { 
+            display: flex; 
+            flex-direction: column; 
+            justify-content: space-around; 
+            min-width: 280px; /* Garante que o card não esmague no celular */
+            gap: 20px; 
+        }
+        
         .bracket-round h4 { text-align: center; color: var(--white); background-color: var(--dark); padding: 10px; border-radius: 5px; margin-bottom: 10px; }
         .bracket-match { background: var(--white); border: 1px solid #ddd; border-radius: 8px; padding: 15px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); border-left: 5px solid var(--primary); position: relative; }
+
+        /* Estilizando a barra de rolagem para ficar com a cara do app */
+        .bracket-container::-webkit-scrollbar {
+            height: 8px; /* Altura da barra horizontal */
+        }
+        .bracket-container::-webkit-scrollbar-track {
+            background: #e0e0e0; /* Cor do fundo da barra */
+            border-radius: 10px;
+        }
+        .bracket-container::-webkit-scrollbar-thumb {
+            background: var(--primary); /* Cor da barrinha (verde do seu app) */
+            border-radius: 10px;
+        }
+        .bracket-container::-webkit-scrollbar-thumb:hover {
+            background: var(--primary-dark);
+        }
     </style>
 </head>
 <body>
