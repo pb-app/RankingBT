@@ -1,6 +1,6 @@
 {
-  "name": "Beach Tennis Pro",
-  "short_name": "BT Pro",
+  "name": "Liga Corja BT",
+  "short_name": "Liga Corja",
   "description": "Sistema de Gestão de Campeonatos de Beach Tennis",
   "start_url": "./index.html",
   "display": "standalone",
