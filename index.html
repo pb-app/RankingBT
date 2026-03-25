@@ -742,13 +742,15 @@
                     if(btn) btn.click();
                 });
             }, 500);
-        }
 
-        if (formatoAberto.includes("Grupos")) {
+            // Bloco colado AQUI DENTRO, antes de fechar a função!
+            if (formatoAberto.includes("Grupos")) {
                 nomesFases = ["Fase de Grupos"];
                 faseAtualUI = 0;
                 atualizarUIFases();
             }
+            
+        } 
 
         function travarGrupos() {
             document.querySelectorAll('#chavesGeradasUI .match-box').forEach(box => {
