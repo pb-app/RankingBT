@@ -383,8 +383,9 @@
                     <button id="btnMostrarInscritos" class="btn btn-outline hidden" style="margin-bottom: 15px; width: 100%;">👀 Ver/Editar Lista de Inscritos</button>
 
                     <h3>🏆 Chaves e Grupos</h3>
-                    <p style="color: var(--gray); margin-bottom: 15px; font-size: 0.9rem;">
-                        Adicione os jogadores primeiro para depois gerar os confrontos.
+                    <p id="avisoChaves" style="color: var(--gray); margin-bottom: 15px; font-size: 0.9rem;">
+                     Adicione os jogadores primeiro para depois gerar os confrontos.
+                        
                     </p>
                     <button id="btnGerarChaves" class="btn" style="width: 100%; background-color: var(--dark); color: var(--white);">
                         ⚙️ Gerar Chaves / Grupos
@@ -499,6 +500,7 @@
             document.getElementById('painel-inscritos').classList.remove('hidden');
             document.getElementById('painel-grid').classList.remove('grid-expandido');
             document.getElementById('btnMostrarInscritos').classList.add('hidden');
+            document.getElementById('avisoChaves').classList.remove('hidden');
 
             document.getElementById('chavesGeradasUI').innerHTML = ''; 
             document.getElementById('mataMataUI').innerHTML = '';
@@ -521,11 +523,13 @@
 
             carregarJogosSalvos(id).then(() => {
                 if (camp.sorteados && camp.sorteados.length > 0) {
-                    
                     // Se o torneio já foi sorteado antes, já abre a tela ocupando 100% do espaço
                     document.getElementById('painel-inscritos').classList.add('hidden');
                     document.getElementById('painel-grid').classList.add('grid-expandido');
-                    document.getElementById('btnMostrarInscritos').classList.remove('hidden');
+                    
+                    // DEIXA O BOTÃO E O AVISO ESCONDIDOS!
+                    document.getElementById('btnMostrarInscritos').classList.add('hidden');
+                    document.getElementById('avisoChaves').classList.add('hidden');
 
                     renderizarGrupos(camp.sorteados);
                 }
@@ -902,7 +906,10 @@
             // Oculta inscrições e expande a área de chaves
             document.getElementById('painel-inscritos').classList.add('hidden');
             document.getElementById('painel-grid').classList.add('grid-expandido');
-            document.getElementById('btnMostrarInscritos').classList.remove('hidden');
+            
+            // ESCONDE O BOTÃO DE EDITAR E O AVISO
+            document.getElementById('btnMostrarInscritos').classList.add('hidden');
+            document.getElementById('avisoChaves').classList.add('hidden');
         });
 
         // ==========================================
