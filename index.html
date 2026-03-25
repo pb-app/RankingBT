@@ -1049,6 +1049,10 @@
                         <div style="margin: 15px 0; color: #ffd700; font-size: 1.6rem; font-weight: bold;">🥇 1º Lugar: <br><span style="color:#fff">${campeao}</span></div>
                         <div style="margin: 15px 0; color: #c0c0c0; font-size: 1.3rem; font-weight: bold;">🥈 2º Lugar: <br><span style="color:#fff">${vice}</span></div>
                         <div style="margin: 15px 0; color: #cd7f32; font-size: 1.3rem; font-weight: bold;">🥉 3º Lugar: <br><span style="color:#fff">${terceiro}</span></div>
+                        
+                        <button onclick="compartilharWhatsApp('${campeao}', '${vice}', '${terceiro}')" class="btn" style="background-color: #25D366; color: white; width: 100%; margin-top: 15px; font-size: 1.1rem; border-radius: 8px; border: none; padding: 12px;">
+                            📲 Compartilhar Resultado no WhatsApp
+                        </button>
                     </div>
                 `;
 
@@ -1305,6 +1309,23 @@
             if (confirm("Quer mesmo excluir? A categoria vai sumir das opções (mas os pontos dos jogadores já salvos continuam no banco de dados).")) {
                 await deleteDoc(doc(db, "categoriasRanking", id));
             }
+        };
+
+        // --- FUNÇÃO PARA COMPARTILHAR NO WHATSAPP ---
+        window.compartilharWhatsApp = function(campeao, vice, terceiro) {
+            // Pega o nome do torneio lá do topo da tela
+            const nomeTorneio = document.getElementById('detalhe-nome-torneio').textContent;
+            
+            // Monta o texto bonitinho com quebras de linha (%0A) e negrito (*)
+            let texto = `🏆 *Resultados Oficiais: ${nomeTorneio}* 🏆%0A%0A`;
+            texto += `🥇 *Campeão:* ${campeao}%0A`;
+            texto += `🥈 *Vice-Campeão:* ${vice}%0A`;
+            texto += `🥉 *3º Lugar:* ${terceiro}%0A%0A`;
+            texto += `🎾 _Acesse nosso sistema de Beach Tennis para ver o Ranking atualizado!_`;
+
+            // Abre o link oficial do WhatsApp Web ou App do celular
+            const url = `https://api.whatsapp.com/send?text=${texto}`;
+            window.open(url, '_blank');
         };
 
         // --- LÓGICA DO PERFIL DO JOGADOR ---
