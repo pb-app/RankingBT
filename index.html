@@ -146,6 +146,20 @@
                 margin-right: 0 !important;
                 font-size: 0.9rem;
             }
+
+            /* Correção da Tabela de Ranking no Celular */
+            #ranking-section > div:last-child {
+                padding: 10px !important; /* Diminui a borda grossa em volta da tabela */
+                overflow-x: auto !important; /* Permite deslizar a tabela pro lado com o dedo */
+                -webkit-overflow-scrolling: touch; /* Deixa o deslizar bem suave no iPhone/Android */
+            }
+            .standings-table {
+                min-width: 420px; /* Impede as palavras de ficarem espremidas umas em cima das outras */
+            }
+            .standings-table th, .standings-table td {
+                padding: 10px 8px !important; /* Diminui o espaço interno das células */
+                font-size: 0.85rem !important; /* Reduz a fonte levemente para caber mais */
+            }
         }
 
         /* Tabelas de Classificação */
