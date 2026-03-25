@@ -95,50 +95,47 @@
 
         
 
-        /* Chaveamento Mata-Mata (ATUALIZADO PARA MOBILE COM FORÇA TOTAL) */
-        
-        /* O container pai precisa deixar vazar para a lateral sem criar scroll na página inteira */
+       /* --- NOVO VISUAL ESTILO LETZPLAY (ABAS/FASES) --- */
         #mataMataUI {
             width: 100%;
-            overflow-x: auto;
-            -webkit-overflow-scrolling: touch;
-            padding-bottom: 15px; /* Espaço para a barra de rolagem não cortar a sombra */
+            padding-bottom: 15px;
         }
 
         .bracket-container { 
-            display: inline-flex; /* Inline-flex força o container a crescer de acordo com os filhos, destravando o scroll */
-            gap: 30px; 
-            margin-top: 30px; 
-            padding: 20px 0; 
-            border-top: 3px dashed #ccc; 
-            min-width: max-content; /* O segredo está aqui: impede que o container comprima os cards para caber na tela */
+            display: block; /* Tiramos o inline-flex para não ter mais scroll horizontal */
+            margin-top: 10px; 
+            padding: 0; 
+            border-top: none; 
+            width: 100%; 
         }
         
+        /* A mágica do LetzPlay: Todas as rodadas ficam escondidas por padrão */
         .bracket-round { 
-            display: flex; 
+            display: none; 
             flex-direction: column; 
-            justify-content: space-around; 
-            width: 320px; /* Largura fixa e espaçosa para não amassar os nomes */
-            gap: 20px; 
+            width: 100%; 
+            gap: 15px; 
+            animation: fadeIn 0.3s ease-in-out;
         }
         
-        .bracket-round h4 { text-align: center; color: var(--white); background-color: var(--dark); padding: 10px; border-radius: 5px; margin-bottom: 10px; }
-        .bracket-match { background: var(--white); border: 1px solid #ddd; border-radius: 8px; padding: 15px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); border-left: 5px solid var(--primary); position: relative; }
+        /* Só aparece a rodada que tem a classe ativa */
+        .bracket-round.fase-ativa { 
+            display: flex; 
+        }
 
-        /* Estilizando a barra de rolagem (Fica no mataMataUI agora) */
-        #mataMataUI::-webkit-scrollbar {
-            height: 8px; 
+        .bracket-match { 
+            background: var(--white); 
+            border: 1px solid #ddd; 
+            border-radius: 8px; 
+            padding: 15px; 
+            box-shadow: 0 4px 6px rgba(0,0,0,0.05); 
+            border-left: 5px solid var(--primary); 
+            position: relative; 
         }
-        #mataMataUI::-webkit-scrollbar-track {
-            background: #e0e0e0; 
-            border-radius: 10px;
-        }
-        #mataMataUI::-webkit-scrollbar-thumb {
-            background: var(--primary); 
-            border-radius: 10px;
-        }
-        #mataMataUI::-webkit-scrollbar-thumb:hover {
-            background: var(--primary-dark);
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(5px); }
+            to { opacity: 1; transform: translateY(0); }
         }
     </style>
 </head>
@@ -312,8 +309,17 @@
                     <button id="btnGerarChaves" class="btn" style="width: 100%; background-color: var(--dark); color: var(--white);">
                         ⚙️ Gerar Chaves / Grupos
                     </button>
-                    
+
                     <div id="chavesGeradasUI" style="margin-top: 15px;"></div>
+
+                    <div id="navegadorFases" class="hidden" style="display: flex; justify-content: space-between; align-items: center; margin: 20px 0; background: var(--dark); color: var(--white); padding: 10px 15px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+                        <button id="btnFaseAnterior" class="btn btn-outline" style="color: var(--white); border-color: var(--white); padding: 5px 15px; font-size: 1.2rem;">⬅</button>
+                        <div style="text-align: center;">
+                            <div style="font-size: 0.7rem; color: #ccc; text-transform: uppercase; letter-spacing: 1px;">Fase Atual</div>
+                            <h3 id="tituloFaseAtual" style="margin: 0; font-size: 1.2rem; color: #ffd700;">Grupos</h3>
+                        </div>
+                        <button id="btnFaseProxima" class="btn btn-outline" style="color: var(--white); border-color: var(--white); padding: 5px 15px; font-size: 1.2rem;">➡</button>
+                    </div>
 
                     <button id="btnMontarMataMata" class="btn hidden" style="width: 100%; margin-top: 20px; background-color: #ff9800; color: #fff;">
                         ⚔️ Avançar Top 2 para o Mata-Mata
@@ -738,6 +744,12 @@
             }, 500);
         }
 
+        if (formatoAberto.includes("Grupos")) {
+                nomesFases = ["Fase de Grupos"];
+                faseAtualUI = 0;
+                atualizarUIFases();
+            }
+
         function travarGrupos() {
             document.querySelectorAll('#chavesGeradasUI .match-box').forEach(box => {
                 box.classList.add('fase-encerrada');
@@ -811,16 +823,89 @@
             document.getElementById('btnMostrarInscritos').classList.remove('hidden');
         });
 
-        // 1. ATUALIZADO: Renderizar Mata-Mata (agora lê a nova estrutura de objeto)
+        // ==========================================
+        // SISTEMA DE NAVEGAÇÃO DE FASES (LETZPLAY)
+        // ==========================================
+        let faseAtualUI = 0; 
+        let nomesFases = []; 
+
+        window.atualizarUIFases = function() {
+            const navegador = document.getElementById('navegadorFases');
+            const titulo = document.getElementById('tituloFaseAtual');
+            const btnAnt = document.getElementById('btnFaseAnterior');
+            const btnProx = document.getElementById('btnFaseProxima');
+            
+            if (nomesFases.length === 0) {
+                navegador.classList.add('hidden');
+                return;
+            }
+            navegador.classList.remove('hidden');
+            titulo.textContent = nomesFases[faseAtualUI];
+            
+            // Esconde/Mostra setas nos limites
+            btnAnt.style.visibility = faseAtualUI > 0 ? 'visible' : 'hidden';
+            btnProx.style.visibility = faseAtualUI < nomesFases.length - 1 ? 'visible' : 'hidden';
+
+            const temGrupos = formatoAberto.includes("Grupos");
+            
+            if (temGrupos) {
+                if (faseAtualUI === 0) {
+                    // Está na aba de Grupos
+                    document.getElementById('chavesGeradasUI').style.display = 'block';
+                    document.getElementById('mataMataUI').style.display = 'none';
+                    // Mostra botão de avançar pro mata-mata se o torneio não foi encerrado
+                    if(isLogged && torneioAbertoData.status !== "encerrado") document.getElementById('btnMontarMataMata').classList.remove('hidden');
+                } else {
+                    // Está em alguma aba de Mata-Mata
+                    document.getElementById('chavesGeradasUI').style.display = 'none';
+                    document.getElementById('mataMataUI').style.display = 'block';
+                    document.getElementById('btnMontarMataMata').classList.add('hidden');
+                    mostrarRodadaMataMata(faseAtualUI - 1); // -1 porque o índice 0 foi "Grupos"
+                }
+            } else {
+                // Formato APENAS Mata-Mata
+                document.getElementById('chavesGeradasUI').style.display = 'none';
+                document.getElementById('mataMataUI').style.display = 'block';
+                document.getElementById('btnMontarMataMata').classList.add('hidden');
+                mostrarRodadaMataMata(faseAtualUI);
+            }
+        };
+
+        function mostrarRodadaMataMata(indexRodada) {
+            document.querySelectorAll('.bracket-round').forEach((round, index) => {
+                if (index === indexRodada) {
+                    round.classList.add('fase-ativa');
+                } else {
+                    round.classList.remove('fase-ativa');
+                }
+            });
+        }
+
+        // Ações dos Botões do Navegador
+        document.getElementById('btnFaseAnterior').addEventListener('click', () => { if (faseAtualUI > 0) { faseAtualUI--; atualizarUIFases(); } });
+        document.getElementById('btnFaseProxima').addEventListener('click', () => { if (faseAtualUI < nomesFases.length - 1) { faseAtualUI++; atualizarUIFases(); } });
+
+
+        // 1. ATUALIZADO: Renderizar Mata-Mata sem aquele monte de tabelas ao mesmo tempo
         function renderizarMataMata(fasesArray) {
             const mataMataUI = document.getElementById('mataMataUI');
             let html = '<div class="bracket-container">';
             
+            // Define o mapa de fases (Tabs)
+            if (formatoAberto.includes("Grupos")) {
+                nomesFases = ["Fase de Grupos"];
+            } else {
+                nomesFases = [];
+            }
+            
             fasesArray.forEach((rodadaData, rodadaIndex) => {
-                // Tenta ler '.jogos' (formato novo) ou fallback para o antigo
                 let rodada = rodadaData.jogos ? rodadaData.jogos : rodadaData; 
-                let nome = rodada.length === 4 ? "Quartas de Final" : (rodada.length === 2 ? "Semifinal" : (rodada.length === 1 ? "FINAL 🏆" : "Fase Eliminatória"));
-                html += `<div class="bracket-round"><h4>${nome}</h4>`;
+                let nome = rodada.length === 4 ? "Quartas de Final" : (rodada.length === 2 ? "Semifinal" : (rodada.length === 1 ? "FINAL 🏆" : "Eliminatórias"));
+                
+                nomesFases.push(nome); // Adiciona essa fase no navegador superior
+                
+                // Removemos o <h4> daqui e deixamos só o container que será ativado/desativado
+                html += `<div class="bracket-round">`;
                 
                 rodada.forEach(jogo => {
                     let tA = jogo.timeA || "Aguardando...", tB = jogo.timeB || "Aguardando...";
@@ -845,8 +930,11 @@
             
             mataMataUI.innerHTML = html + '</div>';
             
-            // Ativa o cálculo do pódio assim que o mata-mata carregar na tela
             verificarEGerarPodio(fasesArray);
+            
+            // Pula a tela para a primeira fase de mata-mata logo após gerar
+            if (formatoAberto.includes("Grupos")) { faseAtualUI = 1; } else { faseAtualUI = 0; }
+            atualizarUIFases();
         }
 
         // 2. ATUALIZADO: Avançar vencedor (também respeitando o novo formato)
