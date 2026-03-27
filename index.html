@@ -1248,7 +1248,6 @@ function verificarEGerarPodio(fasesArray) {
     
     // --------------------------------------------------------------------------------------
     // ETAPA 1: Ocultar o pódio e o botão de encerrar, por padrão.
-    // Isso garante que eles só aparecerão se todas as condições forem atendidas.
     // --------------------------------------------------------------------------------------
     podioUI.classList.add('hidden');
     btnEncerrar.classList.add('hidden');
@@ -1256,15 +1255,15 @@ function verificarEGerarPodio(fasesArray) {
     // --------------------------------------------------------------------------------------
     // ETAPA 2: Verificações de segurança
     // --------------------------------------------------------------------------------------
-    // Se o torneio já acabou (não há mais fases de mata-mata), não faz sentido gerar pódio.
     if (!temMataMata) return;
 
-    // Encontra a fase final (última rodada)
     const finalRoundIndex = window.fasesMataMata.length - 1;
     const finalRound = window.fasesMataMata[finalRoundIndex];
-    // Pega o jogo final (primeiro e único jogo dessa fase)
     const finalMatch = finalRound.jogos ? finalRound.jogos[0] : finalRound[0];
-    if (!finalMatch) return;
+    
+    // 👇 ESTA É A LINHA QUE CORRIGE O BUG 👇
+    // Só avança se o jogo final existir E se os times já estiverem definidos (não forem null)
+    if (!finalMatch || !finalMatch.timeA || !finalMatch.timeB) return; 
 
     // Constrói o identificador único para essa partida final
     const finalId = finalMatch.timeA.replace(/\s+/g, '') + "_vs_" + finalMatch.timeB.replace(/\s+/g, '');
@@ -1272,8 +1271,6 @@ function verificarEGerarPodio(fasesArray) {
     // --------------------------------------------------------------------------------------
     // ETAPA 3: A MÁGICA DA CORREÇÃO
     // --------------------------------------------------------------------------------------
-    // Verifica se os placares da final JÁ FORAM PREENCHIDOS E SALVOS
-    // E se o sistema já concluiu quem é o vencedor dessa partida específica.
     if (jogosSalvos[finalId] && jogosSalvos[finalId].vencedor) {
         // Se as condições acima forem verdadeiras, aí sim podemos calcular o pódio.
         
