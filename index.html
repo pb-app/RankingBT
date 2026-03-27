@@ -1104,11 +1104,30 @@
         document.getElementById('btnMontarMataMata').addEventListener('click', async () => {
             let classif = [];
             
-            // CORREÇÃO 1: Procura tabelas APENAS dentro da área de grupos gerados (ignora a aba de Ranking)
+            // NOVA LÓGICA INTELIGENTE: Lê o tamanho do grupo para decidir quantos classificam
             document.querySelectorAll('#chavesGeradasUI .standings-table tbody').forEach(tb => {
                 let trs = tb.querySelectorAll('tr');
-                if(trs.length > 0) classif.push(trs[0].cells[0].innerText.replace('🥇', '').trim());
-                if(trs.length > 1) classif.push(trs[1].cells[0].innerText.replace('🥈', '').trim());
+                let qtdTimesNoGrupo = trs.length;
+
+                // Função rápida para limpar as medalhas e pegar só o nome puro
+                const pegarNome = (linha) => linha.cells[0].innerText.replace(/[🥇🥈🥉]/g, '').trim();
+
+                if (qtdTimesNoGrupo >= 4) {
+                    // GRUPO COM 4 OU MAIS TIMES: Passam os 3 primeiros!
+                    if(trs.length > 0) classif.push(pegarNome(trs[0]));
+                    if(trs.length > 1) classif.push(pegarNome(trs[1]));
+                    if(trs.length > 2) classif.push(pegarNome(trs[2]));
+                } 
+                else if (qtdTimesNoGrupo === 3) {
+                    // GRUPO COM 3 TIMES: Passam só os 2 primeiros (elimina 1)
+                    if(trs.length > 0) classif.push(pegarNome(trs[0]));
+                    if(trs.length > 1) classif.push(pegarNome(trs[1]));
+                } 
+                else {
+                    // GRUPO COM 2 TIMES (Raro, mas se acontecer, passam os 2)
+                    if(trs.length > 0) classif.push(pegarNome(trs[0]));
+                    if(trs.length > 1) classif.push(pegarNome(trs[1]));
+                }
             });
 
             if (classif.length < 2) { alert("Atualize as classificações dos grupos primeiro!"); return; }
