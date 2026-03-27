@@ -1211,72 +1211,83 @@
         btnNewTournament.addEventListener('click', () => { createSection.style.display = 'block'; detailsSection.classList.add('hidden'); listSection.classList.remove('hidden'); });
         document.getElementById('btnCancelCreate').addEventListener('click', () => { createSection.style.display = 'none'; form.reset(); });
 
-        // --- FUNÇÃO PARA CALCULAR E EXIBIR O PÓDIO FINAL ---
-        function verificarEGerarPodio(fasesArray) {
-            const podioUI = document.getElementById('podioUI');
-            if (!fasesArray || fasesArray.length === 0) return;
+        // ==========================================
+// FUNÇÃO CORRIGIDA PARA CALCULAR E EXIBIR O PÓDIO FINAL
+// ==========================================
+function verificarEGerarPodio(fasesArray) {
+    const podioUI = document.getElementById('podioUI');
+    const btnEncerrar = document.getElementById('btnEncerrarTorneio');
+    const temMataMata = window.fasesMataMata.length > 0;
+    
+    // --------------------------------------------------------------------------------------
+    // ETAPA 1: Ocultar o pódio e o botão de encerrar, por padrão.
+    // Isso garante que eles só aparecerão se todas as condições forem atendidas.
+    // --------------------------------------------------------------------------------------
+    podioUI.classList.add('hidden');
+    btnEncerrar.classList.add('hidden');
+    
+    // --------------------------------------------------------------------------------------
+    // ETAPA 2: Verificações de segurança
+    // --------------------------------------------------------------------------------------
+    // Se o torneio já acabou (não há mais fases de mata-mata), não faz sentido gerar pódio.
+    if (!temMataMata) return;
 
-            // Pega a Final (última rodada) e a Semifinal (penúltima)
-            let finalRound = fasesArray[fasesArray.length - 1];
-            let semiRound = fasesArray.length >= 2 ? fasesArray[fasesArray.length - 2] : null;
+    // Encontra a fase final (última rodada)
+    const finalRoundIndex = window.fasesMataMata.length - 1;
+    const finalRound = window.fasesMataMata[finalRoundIndex];
+    // Pega o jogo final (primeiro e único jogo dessa fase)
+    const finalMatch = finalRound.jogos ? finalRound.jogos[0] : finalRound[0];
+    if (!finalMatch) return;
 
-            let finalMatch = finalRound.jogos ? finalRound.jogos[0] : finalRound[0];
-            if (!finalMatch) return;
+    // Constrói o identificador único para essa partida final
+    const finalId = finalMatch.timeA.replace(/\s+/g, '') + "_vs_" + finalMatch.timeB.replace(/\s+/g, '');
 
-            let tA = finalMatch.timeA;
-            let tB = finalMatch.timeB;
+    // --------------------------------------------------------------------------------------
+    // ETAPA 3: A MÁGICA DA CORREÇÃO
+    // --------------------------------------------------------------------------------------
+    // Verifica se os placares da final JÁ FORAM PREENCHIDOS E SALVOS
+    // E se o sistema já concluiu quem é o vencedor dessa partida específica.
+    if (jogosSalvos[finalId] && jogosSalvos[finalId].vencedor) {
+        // Se as condições acima forem verdadeiras, aí sim podemos calcular o pódio.
+        
+        let campeao = jogosSalvos[finalId].vencedor;
+        let vice = (campeao === finalMatch.timeA) ? finalMatch.timeB : finalMatch.timeA;
+        let terceiro = "-";
+
+        // Lógica para encontrar o 3º colocado (quem perdeu pro campeão na Semi)
+        if (window.fasesMataMata.length >= 2) {
+            let semiRound = window.fasesMataMata[window.fasesMataMata.length - 2];
+            let jogosSemi = semiRound.jogos ? semiRound.jogos : semiRound;
+            let jogoDoCampeaoNaSemi = jogosSemi.find(j => j.timeA === campeao || j.timeB === campeao);
             
-            // Se a final ainda não tem os dois times, esconde o pódio e encerra
-            if (!tA || !tB || tA.includes("Aguardando") || tB.includes("Aguardando")) {
-                podioUI.classList.add('hidden');
-                return;
-            }
-
-            let finalId = tA.replace(/\s+/g, '') + "_vs_" + tB.replace(/\s+/g, '');
-            let jogoFinalSalvo = jogosSalvos[finalId];
-
-            // Se o placar da Final já foi salvo e temos um vencedor!
-            if (jogoFinalSalvo && jogoFinalSalvo.vencedor) {
-                let campeao = jogoFinalSalvo.vencedor;
-                let vice = (campeao === tA) ? tB : tA;
-                let terceiro = "-";
-
-                // Puxa o 3º Colocado: quem perdeu para o CAMPEÃO na Semifinal
-                if (semiRound) {
-                    let jogosSemi = semiRound.jogos ? semiRound.jogos : semiRound;
-                    let jogoDoCampeaoNaSemi = jogosSemi.find(j => j.timeA === campeao || j.timeB === campeao);
-                    
-                    if (jogoDoCampeaoNaSemi) {
-                        terceiro = (jogoDoCampeaoNaSemi.timeA === campeao) ? jogoDoCampeaoNaSemi.timeB : jogoDoCampeaoNaSemi.timeA;
-                    }
-                }
-
-                // Desenha o Card do Pódio na tela (com visual premium)
-                podioUI.classList.remove('hidden');
-                podioUI.innerHTML = `
-                    <div style="background: linear-gradient(135deg, var(--dark), #333); color: var(--white); padding: 20px; border-radius: 10px; text-align: center; box-shadow: 0 4px 6px rgba(0,0,0,0.2); border-top: 5px solid #ffd700; margin-top: 40px; margin-bottom: 20px;">
-                        <h3 style="margin-bottom: 20px; color: #fff; border-bottom: 1px solid #555; padding-bottom: 10px;">🏆 Pódio do Campeonato</h3>
-                        <div style="margin: 15px 0; color: #ffd700; font-size: 1.6rem; font-weight: bold;">🥇 1º Lugar: <br><span style="color:#fff">${campeao}</span></div>
-                        <div style="margin: 15px 0; color: #c0c0c0; font-size: 1.3rem; font-weight: bold;">🥈 2º Lugar: <br><span style="color:#fff">${vice}</span></div>
-                        <div style="margin: 15px 0; color: #cd7f32; font-size: 1.3rem; font-weight: bold;">🥉 3º Lugar: <br><span style="color:#fff">${terceiro}</span></div>
-                        
-                        <button onclick="compartilharWhatsApp('${campeao}', '${vice}', '${terceiro}')" class="btn" style="background-color: #25D366; color: white; width: 100%; margin-top: 15px; font-size: 1.1rem; border-radius: 8px; border: none; padding: 12px;">
-                            📲 Compartilhar Resultado no WhatsApp
-                        </button>
-                    </div>
-                `;
-
-                // MOSTRA O BOTÃO DE ENCERRAR (Se o torneio não estiver encerrado e for o organizador)
-                if (isLogged && torneioAbertoData.status !== "encerrado") {
-                    document.getElementById('btnEncerrarTorneio').classList.remove('hidden');
-                } else {
-                    document.getElementById('btnEncerrarTorneio').classList.add('hidden');
-                }
-            } else {
-                podioUI.classList.add('hidden');
-                document.getElementById('btnEncerrarTorneio').classList.add('hidden');
+            if (jogoDoCampeaoNaSemi) {
+                terceiro = (jogoDoCampeaoNaSemi.timeA === campeao) ? jogoDoCampeaoNaSemi.timeB : jogoDoCampeaoNaSemi.timeA;
             }
         }
+
+        // AGORA É SEGURO EXIBIR O PÓDIO
+        podioUI.classList.remove('hidden');
+        podioUI.innerHTML = `
+            <div style="background: linear-gradient(135deg, var(--dark), #333); color: var(--white); padding: 20px; border-radius: 10px; text-align: center; box-shadow: 0 4px 6px rgba(0,0,0,0.2); border-top: 5px solid #ffd700; margin-top: 40px; margin-bottom: 20px;">
+                <h3 style="margin-bottom: 20px; color: #fff; border-bottom: 1px solid #555; padding-bottom: 10px;">🏆 Pódio do Campeonato</h3>
+                <div style="margin: 15px 0; color: #ffd700; font-size: 1.6rem; font-weight: bold;">🥇 1º Lugar: <br><span style="color:#fff">${campeao}</span></div>
+                <div style="margin: 15px 0; color: #c0c0c0; font-size: 1.3rem; font-weight: bold;">🥈 2º Lugar: <br><span style="color:#fff">${vice}</span></div>
+                <div style="margin: 15px 0; color: #cd7f32; font-size: 1.3rem; font-weight: bold;">🥉 3º Lugar: <br><span style="color:#fff">${terceiro}</span></div>
+                
+                <button onclick="compartilharWhatsApp('${campeao}', '${vice}', '${terceiro}')" class="btn" style="background-color: #25D366; color: white; width: 100%; margin-top: 15px; font-size: 1.1rem; border-radius: 8px; border: none; padding: 12px;">
+                    📲 Compartilhar Resultado no WhatsApp
+                </button>
+            </div>
+        `;
+
+        // MOSTRA O BOTÃO DE ENCERRAR (Se o torneio não estiver encerrado e for o organizador)
+        if (isLogged && torneioAbertoData.status !== "encerrado") {
+            btnEncerrar.classList.remove('hidden');
+        } else {
+            btnEncerrar.classList.add('hidden');
+        }
+    }
+}
 
         // --- NAVEGAÇÃO ENTRE CAMPEONATOS E RANKING ---
         const btnAbaCampeonatos = document.getElementById('btnAbaCampeonatos');
