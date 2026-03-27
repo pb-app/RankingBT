@@ -539,6 +539,14 @@
             document.getElementById('mataMataUI').innerHTML = '';
             document.getElementById('btnMontarMataMata').classList.add('hidden');
             
+            // 👇 ADICIONE ESTAS LINHAS AQUI (A FAXINA DO PÓDIO) 👇
+            document.getElementById('podioUI').classList.add('hidden');
+            document.getElementById('podioUI').innerHTML = '';
+            document.getElementById('btnEncerrarTorneio').classList.add('hidden');
+            window.fasesMataMata = [];
+            jogosSalvos = {};
+            // 👆 FIM DA FAXINA 👆
+            
             carregarInscritos(id);
             // Busca os nomes dos jogadores do ranking para o autocompletar
             carregarSugestoesJogadores(camp.ranking);
