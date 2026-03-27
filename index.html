@@ -915,16 +915,24 @@
                 // LÓGICA SE FOR APENAS MATA-MATA (Gera a chave direto, sem botão extra!)
                 let classif = sorteados.map(insc => insc.jogador2 ? `${insc.jogador1} & ${insc.jogador2}` : insc.jogador1);
                 
-                // Força o número de times a ser uma potência de 2 (2, 4, 8, 16) colocando "BYEs"
+                // NOVA LÓGICA DE BYES PARA "APENAS MATA-MATA"
                 let nextPowerOf2 = Math.pow(2, Math.ceil(Math.log2(classif.length)));
-                while (classif.length < nextPowerOf2) { classif.push("Avança Direto (BYE)"); }
+                let numByes = nextPowerOf2 - classif.length;
+                let totalJogos = nextPowerOf2 / 2;
                 
                 window.fasesMataMata = [];
-                let totalJogos = classif.length / 2;
-                
                 let rod1 = [];
-                for (let i = 0; i < classif.length; i += 2) { 
-                    rod1.push({ timeA: classif[i], timeB: classif[i+1] }); 
+                
+                for (let i = 0; i < totalJogos; i++) {
+                    let tA = classif.shift();
+                    let tB;
+                    if (numByes > 0) {
+                        tB = "Avança Direto (BYE)";
+                        numByes--;
+                    } else {
+                        tB = classif.shift();
+                    }
+                    rod1.push({ timeA: tA, timeB: tB });
                 }
                 window.fasesMataMata.push({ jogos: rod1 }); 
 
@@ -1147,22 +1155,30 @@
             travarGrupos(); 
             classif.sort(() => Math.random() - 0.5); 
             
-            // CORREÇÃO 2: Força o número de times a ser uma potência de 2 (2, 4, 8, 16).
-            // Se tiverem 6 times (3 grupos), ele adiciona 2 "BYEs" para fechar 8 times e a chave não quebrar.
+            // NOVA LÓGICA DE BYES: Distribui para não dar "BYE vs BYE"
             let nextPowerOf2 = Math.pow(2, Math.ceil(Math.log2(classif.length)));
-            while (classif.length < nextPowerOf2) {
-                classif.push("Avança Direto (BYE)");
-            }
+            let numByes = nextPowerOf2 - classif.length;
+            let totalJogos = nextPowerOf2 / 2;
 
             window.fasesMataMata = [];
-            let totalJogos = classif.length / 2;
-            
             let rod1 = [];
-            for (let i = 0; i < classif.length; i += 2) { 
-                rod1.push({ timeA: classif[i], timeB: classif[i+1] }); 
+
+            // O sistema atua como um "dealer" de cartas: 
+            // Coloca 1 time real em cada partida primeiro, e só depois preenche o adversário (com BYE ou com outro time)
+            for (let i = 0; i < totalJogos; i++) {
+                let tA = classif.shift(); // Puxa o primeiro time da lista
+                let tB;
+
+                if (numByes > 0) {
+                    tB = "Avança Direto (BYE)"; // Se ainda tem vaga fantasma, joga ela aqui
+                    numByes--;
+                } else {
+                    tB = classif.shift(); // Se acabaram os fantasmas, puxa um time real contra ele
+                }
+                rod1.push({ timeA: tA, timeB: tB });
             }
             
-            window.fasesMataMata.push({ jogos: rod1 }); 
+            window.fasesMataMata.push({ jogos: rod1 });
 
             let prox = totalJogos / 2;
             while (prox >= 1) {
