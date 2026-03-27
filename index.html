@@ -456,9 +456,6 @@
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
-
-    <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
         import { getFirestore, collection, addDoc, onSnapshot, query, orderBy, serverTimestamp, doc, updateDoc, getDocs, setDoc, getDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
         // NOVO IMPORT DE AUTENTICAÇÃO
         import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
@@ -1558,7 +1555,11 @@
         document.getElementById('btnFecharPerfilTop').addEventListener('click', () => modalPerfilJogador.classList.add('hidden'));
 
         updateAuthUI();
-    <script>
+
+        // ==========================================
+        // LÓGICA DO APP (PWA)
+        // ==========================================
+
         // 1. Registra o Service Worker (Motor do App)
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
