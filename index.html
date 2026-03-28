@@ -626,6 +626,9 @@
                     // DEIXA O BOTÃO E O AVISO ESCONDIDOS!
                     document.getElementById('btnMostrarInscritos').classList.add('hidden');
                     document.getElementById('avisoChaves').classList.add('hidden');
+                    
+                    // 👇 NOVA TRAVA: SOME COM O BOTÃO GERAR CHAVES 👇
+                    document.getElementById('btnGerarChaves').classList.add('hidden');
 
                     renderizarGrupos(camp.sorteados);
                 }
@@ -1014,11 +1017,13 @@
             document.getElementById('painel-inscritos').classList.add('hidden');
             document.getElementById('painel-grid').classList.add('grid-expandido');
             
-            // ESCONDE O BOTÃO DE EDITAR E O AVISO
+            /// ESCONDE O BOTÃO DE EDITAR E O AVISO
             document.getElementById('btnMostrarInscritos').classList.add('hidden');
             document.getElementById('avisoChaves').classList.add('hidden');
+            
+            // 👇 NOVA TRAVA: SOME COM O BOTÃO GERAR CHAVES ASSIM QUE CLICAR 👇
+            document.getElementById('btnGerarChaves').classList.add('hidden');
         });
-
         // ==========================================
         // SISTEMA DE NAVEGAÇÃO DE FASES (LETZPLAY)
         // ==========================================
@@ -1049,14 +1054,20 @@
                     // Está na aba de Grupos
                     document.getElementById('chavesGeradasUI').style.display = 'block';
                     document.getElementById('mataMataUI').style.display = 'none';
-                    // Mostra botão de avançar pro mata-mata se o torneio não foi encerrado
-                    if(isLogged && torneioAbertoData.status !== "encerrado") document.getElementById('btnMontarMataMata').classList.remove('hidden');
+                    
+                    // 👇 LÓGICA BLINDADA: Só mostra se não encerrou E se ainda não tem Mata-Mata 👇
+                    let jaTemMataMata = torneioAbertoData.fasesMataMata && torneioAbertoData.fasesMataMata.length > 0;
+                    if (isLogged && torneioAbertoData.status !== "encerrado" && !jaTemMataMata) {
+                        document.getElementById('btnMontarMataMata').classList.remove('hidden');
+                    } else {
+                        document.getElementById('btnMontarMataMata').classList.add('hidden');
+                    }
                 } else {
                     // Está em alguma aba de Mata-Mata
                     document.getElementById('chavesGeradasUI').style.display = 'none';
                     document.getElementById('mataMataUI').style.display = 'block';
                     document.getElementById('btnMontarMataMata').classList.add('hidden');
-                    mostrarRodadaMataMata(faseAtualUI - 1); // -1 porque o índice 0 foi "Grupos"
+                    mostrarRodadaMataMata(faseAtualUI - 1); 
                 }
             } else {
                 // Formato APENAS Mata-Mata
@@ -1194,6 +1205,26 @@
         
         // 3. ATUALIZADO: Montar o Mata-Mata (Correção do Bug do Ranking e Matemática de Chaves)
         document.getElementById('btnMontarMataMata').addEventListener('click', async () => {
+            
+            // 👇 INÍCIO DA TRAVA DE SEGURANÇA 👇
+            const jogosFaseGrupos = document.querySelectorAll('#chavesGeradasUI .match-box');
+            let jogosFaltando = 0;
+            
+            // O sistema olha caixa por caixa de jogo
+            jogosFaseGrupos.forEach(box => {
+                // Se o jogo NÃO tiver a classe 'resolvido' (que é ativada quando salva o placar)
+                if (!box.classList.contains('resolvido')) { 
+                    jogosFaltando++; 
+                }
+            });
+
+            // Se achar algum jogo pendente, ele bloqueia a ação e avisa!
+            if (jogosFaltando > 0) {
+                alert(`🚨 Atenção! Faltam salvar o placar de ${jogosFaltando} jogo(s) na Fase de Grupos.\nPreencha e salve todos os resultados antes de avançar para o Mata-Mata!`);
+                return; // O 'return' cancela o clique do botão na hora!
+            }
+            // 👆 FIM DA TRAVA DE SEGURANÇA 👆
+            
             let classif = [];
             
             // NOVA LÓGICA INTELIGENTE: Lê o tamanho do grupo para decidir quantos classificam
