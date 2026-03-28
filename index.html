@@ -116,8 +116,17 @@
 
         /* Responsividade Profissional para Celular */
         @media (max-width: 768px) { 
-            /* 👇 NOVA CORREÇÃO: Reduzimos o padding lateral para 10px para expandir o conteúdo no celular 👇 */
-            main { padding: 3rem 10px; }
+            /* Reduz a margem da página */
+            main { padding: 2rem 5px; } 
+
+            /* 👇 AS NOVAS LINHAS MÁGICAS 👇 */
+            /* Tira a gordura interna das caixas principais */
+            #create-section, #details-section { padding: 1.5rem 10px; border-radius: 12px; }
+            /* Tira a gordura interna dos painéis (onde ficam os grupos/inscritos) */
+            .panel-card { padding: 1.2rem 10px; }
+            /* Estica o navegador de fases até a beirada */
+            #navegadorFases { padding: 10px 5px !important; }
+            /* 👆 FIM DAS NOVAS LINHAS 👆 */
 
             .panel-grid { grid-template-columns: 1fr !important; } 
             
