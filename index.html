@@ -818,15 +818,17 @@
 
                 if (isMataMata && vencedor !== "") {
                     avancarVencedorMataMata();
+                } else if (!isMataMata) {
+                    // SE FOR FASE DE GRUPOS, ATUALIZA A TABELA SOZINHO!
+                    atualizarTabelaDoGrupo(matchBox.closest('.grupo-container'));
                 }
             } catch(e) { alert("Erro."); botao.textContent = '💾 Salvar Placar'; botao.disabled = false; }
         };
 
-        window.atualizarClassificacao = async function(botao, nomeGrupo) {
-            const container = botao.closest('div'); 
+        // NOVO MOTOR INVISÍVEL DE TABELAS (Sem precisar de botão!)
+        window.atualizarTabelaDoGrupo = function(container) {
             const tabelaContainer = container.querySelector('.tabela-container');
             const jogosBox = container.querySelectorAll('.match-box');
-            botao.textContent = 'Calculando...';
             
             let stats = {};
             jogosBox.forEach(box => {
@@ -851,16 +853,16 @@
                 }
             });
 
+            // Lógica de desempate automático
             let classif = Object.values(stats).sort((a,b) => b.v !== a.v ? b.v - a.v : (b.ss !== a.ss ? b.ss - a.ss : b.sg - a.sg));
             
-            let htmlTab = `<table class="standings-table"><thead><tr><th>Dupla</th><th>J</th><th>V</th><th>SS</th><th>SG</th></tr></thead><tbody>`;
+            let htmlTab = `<table class="standings-table" style="margin-top: 20px;"><thead><tr><th>Dupla</th><th>J</th><th>V</th><th>SS</th><th>SG</th></tr></thead><tbody>`;
             classif.forEach((t, i) => {
-                let icone = i === 0 ? '🥇 ' : (i === 1 ? '🥈 ' : '');
+                let icone = i === 0 ? '🥇 ' : (i === 1 ? '🥈 ' : (i === 2 ? '🥉 ' : ''));
                 htmlTab += `<tr><td>${icone}${t.nome}</td><td>${t.j}</td><td><strong>${t.v}</strong></td><td>${t.ss}</td><td>${t.sg}</td></tr>`;
             });
             htmlTab += `</tbody></table>`;
             tabelaContainer.innerHTML = htmlTab;
-            botao.textContent = '🔄 Atualizar Classificação';
         };
 
         function renderizarGrupos(sorteados) {
@@ -890,9 +892,8 @@
 
                 grupos.forEach((grupo, index) => {
                     const letra = String.fromCharCode(65 + index);
-                    html += `<div style="margin-bottom: 30px; background: #fff; padding: 15px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.05);">
-                                <h5 style="background: var(--dark); color: #fff; padding: 8px; display: flex; justify-content: space-between;">Grupo ${letra}
-                                <button onclick="atualizarClassificacao(this, '${letra}')" class="btn ${isLogged ? '' : 'hidden'}" style="background: var(--primary); padding: 5px;">🔄 Atualizar Classificação</button></h5>`;
+                    html += `<div class="grupo-container" style="margin-bottom: 30px; background: #fff; padding: 15px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.05);">
+                                <h5 style="background: var(--dark); color: #fff; padding: 10px; border-radius: 8px 8px 0 0; text-align: center; margin-bottom: 15px;">🏆 Grupo ${letra}</h5>`;
                     
                     for (let i = 0; i < grupo.length; i++) {
                         for (let j = i + 1; j < grupo.length; j++) {
@@ -919,12 +920,12 @@
                 travarGrupos();
             }
 
+            // Carrega as tabelas automaticamente assim que a tela abre
             setTimeout(() => {
-                document.querySelectorAll('.tabela-container').forEach(container => {
-                    let btn = container.parentElement.querySelector('h5 button');
-                    if(btn) btn.click();
+                document.querySelectorAll('.grupo-container').forEach(container => {
+                    atualizarTabelaDoGrupo(container);
                 });
-            }, 500);
+            }, 200);
 
             // Bloco colado AQUI DENTRO, antes de fechar a função!
             if (formatoAberto.includes("Grupos")) {
