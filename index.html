@@ -254,25 +254,33 @@
 </head>
 <body>
 
-    <div id="modalPerfilJogador" class="hidden" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); z-index: 1000; display: flex; justify-content: center; align-items: center;">
-        <div style="background: var(--white); padding: 2rem; border-radius: 10px; width: 90%; max-width: 400px; text-align: center; position: relative;">
+    <div id="modalPerfilJogador" class="hidden" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); z-index: 1000; display: flex; justify-content: center; align-items: center; backdrop-filter: blur(5px);">
+        <div style="background: var(--white); padding: 2rem; border-radius: 16px; width: 90%; max-width: 400px; text-align: center; position: relative; border: 1px solid var(--border); box-shadow: 0 20px 40px rgba(0,0,0,0.5);">
             <button type="button" id="btnFecharPerfilTop" style="position: absolute; top: 10px; right: 15px; background: transparent; border: none; font-size: 1.5rem; cursor: pointer; color: var(--gray);">&times;</button>
-            <div style="font-size: 3.5rem; margin-bottom: 10px;">👤</div>
+            <div style="font-size: 3.5rem; margin-bottom: 5px; text-shadow: 0 4px 10px rgba(0,0,0,0.2);">👤</div>
             <h2 id="perfilNome" style="color: var(--dark); margin-bottom: 5px;">Nome do Jogador</h2>
-            <p style="color: var(--gray); margin-bottom: 20px; font-size: 0.9rem;">Estatísticas Oficiais</p>
+            <p style="color: var(--gray); margin-bottom: 20px; font-size: 0.85rem; text-transform: uppercase; letter-spacing: 1px;">Estatísticas Oficiais</p>
             
-            <div style="display: flex; justify-content: space-around; background: var(--light); padding: 15px; border-radius: 8px; margin-bottom: 20px; border: 1px solid #eee;">
-                <div>
-                    <div style="font-size: 1.8rem; font-weight: bold; color: var(--primary-dark);" id="perfilPontos">0</div>
-                    <div style="font-size: 0.8rem; color: var(--gray); text-transform: uppercase;">Pontos</div>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; background: #0b0c0f; padding: 20px; border-radius: 12px; margin-bottom: 20px; border: 1px solid var(--border);">
+                <div style="background: var(--white); padding: 10px; border-radius: 8px; border-bottom: 3px solid var(--primary);">
+                    <div style="font-size: 1.8rem; font-weight: bold; color: var(--primary);" id="perfilPontos">0</div>
+                    <div style="font-size: 0.75rem; color: var(--gray); text-transform: uppercase; font-weight: 600;">Pontos</div>
                 </div>
-                <div>
-                    <div style="font-size: 1.8rem; font-weight: bold; color: var(--dark);" id="perfilTorneios">0</div>
-                    <div style="font-size: 0.8rem; color: var(--gray); text-transform: uppercase;">Torneios</div>
+                <div style="background: var(--white); padding: 10px; border-radius: 8px; border-bottom: 3px solid #3498db;">
+                    <div style="font-size: 1.8rem; font-weight: bold; color: #3498db;" id="perfilTorneios">0</div>
+                    <div style="font-size: 0.75rem; color: var(--gray); text-transform: uppercase; font-weight: 600;">Torneios</div>
+                </div>
+                <div style="background: var(--white); padding: 10px; border-radius: 8px; border-bottom: 3px solid #ffd700;">
+                    <div style="font-size: 1.8rem; font-weight: bold; color: #ffd700;" id="perfilTitulos">0</div>
+                    <div style="font-size: 0.75rem; color: var(--gray); text-transform: uppercase; font-weight: 600;">Títulos 🥇</div>
+                </div>
+                <div style="background: var(--white); padding: 10px; border-radius: 8px; border-bottom: 3px solid #e74c3c;">
+                    <div style="font-size: 1.8rem; font-weight: bold; color: #e74c3c;" id="perfilAproveitamento">0%</div>
+                    <div style="font-size: 0.75rem; color: var(--gray); text-transform: uppercase; font-weight: 600;">Vitórias</div>
                 </div>
             </div>
             
-            <button type="button" id="btnFecharPerfil" class="btn btn-outline" style="width: 100%;">Fechar</button>
+            <button type="button" id="btnFecharPerfil" class="btn btn-outline" style="width: 100%;">Fechar Painel</button>
         </div>
     </div>
 
@@ -1498,38 +1506,77 @@ function verificarEGerarPodio(fasesArray) {
                 });
             });
 
-            // 3. Separa as Duplas em Jogadores Individuais
-            let pontuacaoIndividual = {};
+            /// 3. O CÉREBRO GAMIFICADO: Calcula Vitórias, Jogos, Títulos e Pontos Individuais
+            let statsIndividuais = {};
+            
+            // Passo A: Prepara todo mundo que jogou e separa os pontos individuais
             for (let time in pontuacaoTimes) {
-                let pontos = pontuacaoTimes[time];
-                let jogadores = time.split('&').map(j => j.trim()); // Divide pelo "&"
+                let jogadores = time.split('&').map(j => j.trim());
                 jogadores.forEach(jogador => {
                     if (jogador && !jogador.includes("BYE") && !jogador.includes("Aguardando")) {
-                        pontuacaoIndividual[jogador] = pontos;
+                        if (!statsIndividuais[jogador]) {
+                            statsIndividuais[jogador] = { 
+                                pontos: pontuacaoTimes[time], 
+                                titulos: (pontuacaoTimes[time] === ptsConfig.campeao) ? 1 : 0,
+                                vitorias: 0,
+                                jogos: 0
+                            };
+                        }
                     }
                 });
             }
 
+            // Passo B: Varre TODOS os jogos salvos para contar quem ganhou e quem perdeu
+            for (let id in jogosSalvos) {
+                let j = jogosSalvos[id];
+                if (!j.vencedor || j.timeA.includes("BYE") || j.timeB.includes("BYE")) continue; // Ignora jogos vazios ou BYE
+                
+                let tA = j.timeA.split('&').map(p=>p.trim());
+                let tB = j.timeB.split('&').map(p=>p.trim());
+                let vencedores = j.vencedor.split('&').map(p=>p.trim());
+                
+                // Soma 1 jogo disputado para todos
+                tA.forEach(p => { if(statsIndividuais[p]) statsIndividuais[p].jogos++; });
+                tB.forEach(p => { if(statsIndividuais[p]) statsIndividuais[p].jogos++; });
+                // Soma 1 vitória para os vencedores
+                vencedores.forEach(p => { if(statsIndividuais[p]) statsIndividuais[p].vitorias++; });
+            }
+
             // 4. Salva no Banco de Dados (Ranking)
             try {
-                for (let jogador in pontuacaoIndividual) {
-                    let pontosGanhos = pontuacaoIndividual[jogador];
-                    let safeId = jogador.replace(/\s+/g, '_').toLowerCase(); // Ex: "ageu silva" vira "ageu_silva"
+                for (let jogador in statsIndividuais) {
+                    let stats = statsIndividuais[jogador];
+                    let safeId = jogador.replace(/\s+/g, '_').toLowerCase();
                     let ref = doc(db, "rankings", rankingNome, "jogadores", safeId);
                     
                     let snap = await getDoc(ref);
                     if (snap.exists()) {
                         let dados = snap.data();
-                        await setDoc(ref, { nome: jogador, pontos: dados.pontos + pontosGanhos, torneios: dados.torneios + 1 });
+                        await setDoc(ref, { 
+                            nome: jogador, 
+                            pontos: (dados.pontos || 0) + stats.pontos, 
+                            torneios: (dados.torneios || 0) + 1,
+                            titulos: (dados.titulos || 0) + stats.titulos,
+                            vitorias: (dados.vitorias || 0) + stats.vitorias,
+                            jogos: (dados.jogos || 0) + stats.jogos
+                        });
                     } else {
-                        await setDoc(ref, { nome: jogador, pontos: pontosGanhos, torneios: 1 });
+                        // É um jogador novo no ranking
+                        await setDoc(ref, { 
+                            nome: jogador, 
+                            pontos: stats.pontos, 
+                            torneios: 1,
+                            titulos: stats.titulos,
+                            vitorias: stats.vitorias,
+                            jogos: stats.jogos
+                        });
                     }
                 }
 
                 // 5. Tranca o torneio para não somar duas vezes
                 await updateDoc(doc(db, "campeonatos", torneioAbertoId), { status: "encerrado" });
                 torneioAbertoData.status = "encerrado";
-                btn.textContent = "✅ Torneio Encerrado e Pontos Salvos!";
+                btn.textContent = "✅ Torneio Encerrado e Estatísticas Salvas!";
                 btn.style.backgroundColor = "var(--primary-dark)";
                 
             } catch(e) {
@@ -1576,10 +1623,17 @@ function verificarEGerarPodio(fasesArray) {
             let html = '';
             lista.forEach((jog, index) => {
                 let icone = index === 0 ? '🥇' : (index === 1 ? '🥈' : (index === 2 ? '🥉' : (index + 1 + 'º')));
+                
+                // Puxa os novos dados (se não existirem, zera pra não dar erro nos jogadores antigos)
+                let titulos = jog.titulos || 0;
+                let vitorias = jog.vitorias || 0;
+                let jogos = jog.jogos || 0;
+                let aproveitamento = jogos > 0 ? Math.round((vitorias / jogos) * 100) : 0;
+
                 html += `<tr>
                     <td><strong>${icone}</strong></td>
                     <td style="text-align:left;">
-                        <a href="#" onclick="abrirPerfilJogador('${jog.nome}', ${jog.pontos}, ${jog.torneios})" style="color: var(--primary-dark); text-decoration: none; font-weight: bold; border-bottom: 1px dashed var(--primary); cursor: pointer;">
+                        <a href="#" onclick="abrirPerfilJogador('${jog.nome}', ${jog.pontos}, ${jog.torneios}, ${titulos}, ${aproveitamento})" style="color: var(--primary-dark); text-decoration: none; font-weight: bold; border-bottom: 1px dashed var(--primary); cursor: pointer;">
                             ${jog.nome}
                         </a>
                     </td>
@@ -1682,11 +1736,12 @@ function verificarEGerarPodio(fasesArray) {
         // --- LÓGICA DO PERFIL DO JOGADOR ---
         const modalPerfilJogador = document.getElementById('modalPerfilJogador');
 
-        // Função que é chamada ao clicar no nome do jogador na tabela
-        window.abrirPerfilJogador = function(nome, pontos, torneios) {
+        window.abrirPerfilJogador = function(nome, pontos, torneios, titulos = 0, aproveitamento = 0) {
             document.getElementById('perfilNome').textContent = nome;
             document.getElementById('perfilPontos').textContent = pontos;
             document.getElementById('perfilTorneios').textContent = torneios;
+            document.getElementById('perfilTitulos').textContent = titulos;
+            document.getElementById('perfilAproveitamento').textContent = aproveitamento + '%';
             
             modalPerfilJogador.classList.remove('hidden');
         };
