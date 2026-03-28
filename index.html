@@ -1028,7 +1028,7 @@
 
 
         // 1. ATUALIZADO: Renderizar Mata-Mata sem aquele monte de tabelas ao mesmo tempo
-        function renderizarMataMata(fasesArray) {
+        function renderizarMataMata(fasesArray, manterAba = false) {
             const mataMataUI = document.getElementById('mataMataUI');
             let html = '<div class="bracket-container">';
             
@@ -1089,8 +1089,10 @@
             
             verificarEGerarPodio(fasesArray);
             
-            // Pula a tela para a primeira fase de mata-mata logo após gerar
-            if (formatoAberto.includes("Grupos")) { faseAtualUI = 1; } else { faseAtualUI = 0; }
+            // Só pula para a primeira fase se NÃO for uma atualização de placar
+            if (!manterAba) {
+                if (formatoAberto.includes("Grupos")) { faseAtualUI = 1; } else { faseAtualUI = 0; }
+            }
             atualizarUIFases();
         }
 
@@ -1132,9 +1134,9 @@
             });
             
             await updateDoc(doc(db, "campeonatos", torneioAbertoId), { fasesMataMata: window.fasesMataMata });
-            renderizarMataMata(window.fasesMataMata);
+            renderizarMataMata(window.fasesMataMata, true); // O "true" trava a aba no lugar!
         };
-
+        
         // 3. ATUALIZADO: Montar o Mata-Mata (Correção do Bug do Ranking e Matemática de Chaves)
         document.getElementById('btnMontarMataMata').addEventListener('click', async () => {
             let classif = [];
