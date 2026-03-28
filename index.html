@@ -1225,64 +1225,83 @@
             }
             // 👆 FIM DA TRAVA DE SEGURANÇA 👆
             
-            let classif = [];
+            // 👇 1. LÓGICA DE CABEÇAS DE CHAVE (SEEDING) 👇
+            let timesAvancando = [];
             
-            // NOVA LÓGICA INTELIGENTE: Lê o tamanho do grupo para decidir quantos classificam
             document.querySelectorAll('#chavesGeradasUI .standings-table tbody').forEach(tb => {
                 let trs = tb.querySelectorAll('tr');
                 let qtdTimesNoGrupo = trs.length;
 
-                // Função rápida para limpar as medalhas e pegar só o nome puro
-                const pegarNome = (linha) => linha.cells[0].innerText.replace(/[🥇🥈🥉]/g, '').trim();
+                // Define quantos passam com base no tamanho do grupo
+                let limite = 0;
+                if (qtdTimesNoGrupo >= 4) limite = 3;
+                else if (qtdTimesNoGrupo === 3) limite = 2;
+                else limite = 2;
 
-                if (qtdTimesNoGrupo >= 4) {
-                    // GRUPO COM 4 OU MAIS TIMES: Passam os 3 primeiros!
-                    if(trs.length > 0) classif.push(pegarNome(trs[0]));
-                    if(trs.length > 1) classif.push(pegarNome(trs[1]));
-                    if(trs.length > 2) classif.push(pegarNome(trs[2]));
-                } 
-                else if (qtdTimesNoGrupo === 3) {
-                    // GRUPO COM 3 TIMES: Passam só os 2 primeiros (elimina 1)
-                    if(trs.length > 0) classif.push(pegarNome(trs[0]));
-                    if(trs.length > 1) classif.push(pegarNome(trs[1]));
-                } 
-                else {
-                    // GRUPO COM 2 TIMES (Raro, mas se acontecer, passam os 2)
-                    if(trs.length > 0) classif.push(pegarNome(trs[0]));
-                    if(trs.length > 1) classif.push(pegarNome(trs[1]));
+                for (let i = 0; i < limite && i < trs.length; i++) {
+                    let linha = trs[i];
+                    // Lê a tabela de forma invisível para pegar o nome e a performance geral!
+                    let nome = linha.cells[0].innerText.replace(/[🥇🥈🥉]/g, '').trim();
+                    let v = parseInt(linha.cells[2].innerText) || 0;  // Vitórias
+                    let ss = parseInt(linha.cells[3].innerText) || 0; // Saldo de Sets
+                    let sg = parseInt(linha.cells[4].innerText) || 0; // Saldo de Games
+                    
+                    timesAvancando.push({ nome, v, ss, sg });
                 }
             });
 
-            if (classif.length < 2) { alert("Atualize as classificações dos grupos primeiro!"); return; }
+            if (timesAvancando.length < 2) { alert("Atualize as classificações dos grupos primeiro!"); return; }
 
             if (torneioAbertoData.fasesMataMata && torneioAbertoData.fasesMataMata.length > 0) {
                 if(!confirm("O Mata-Mata já foi gerado! Quer sortear e sobrescrever?")) return;
             }
 
             travarGrupos(); 
-            classif.sort(() => Math.random() - 0.5); 
             
-            // NOVA LÓGICA DE BYES: Distribui para não dar "BYE vs BYE"
-            let nextPowerOf2 = Math.pow(2, Math.ceil(Math.log2(classif.length)));
-            let numByes = nextPowerOf2 - classif.length;
+            // 👇 2. O CÉREBRO: Ordena os times para achar o Top 1 e Top 2 absolutos! 👇
+            // Desempate automático: Vitórias -> Saldo de Sets -> Saldo de Games
+            timesAvancando.sort((a,b) => b.v - a.v || b.ss - a.ss || b.sg - a.sg);
+            
+            let seed1 = timesAvancando[0].nome;
+            let seed2 = timesAvancando[1].nome;
+            
+            // Pega todo o resto dos classificados e embaralha pra manter a sorte do sorteio
+            let resto = timesAvancando.slice(2).map(t => t.nome);
+            resto.sort(() => Math.random() - 0.5);
+
+            // A matemática da montagem do Mata-Mata
+            let nextPowerOf2 = Math.pow(2, Math.ceil(Math.log2(timesAvancando.length)));
+            let numByes = nextPowerOf2 - timesAvancando.length;
             let totalJogos = nextPowerOf2 / 2;
 
             window.fasesMataMata = [];
             let rod1 = [];
+            
+            // Cria todos os jogos da primeira fase vazios
+            for(let i=0; i<totalJogos; i++) rod1.push({timeA: null, timeB: null});
 
-            // O sistema atua como um "dealer" de cartas: 
-            // Coloca 1 time real em cada partida primeiro, e só depois preenche o adversário (com BYE ou com outro time)
+            // 👇 3. ESTRATÉGIA: Coloca os Cabeças de Chave nas extremidades (nunca se cruzam antes da Final) 👇
+            rod1[0].timeA = seed1; // Top 1 no topo da chave
+            rod1[totalJogos - 1].timeA = seed2; // Top 2 no fundo da chave
+
+            // 👇 4. PRÊMIO: Dá os BYEs como recompensa primeiro para os Cabeças de Chave 👇
+            if (numByes > 0) { rod1[0].timeB = "Avança Direto (BYE)"; numByes--; }
+            if (numByes > 0) { rod1[totalJogos - 1].timeB = "Avança Direto (BYE)"; numByes--; }
+
+            // 👇 5. DISTRIBUIÇÃO: Preenche os buracos que sobraram com as outras duplas e os BYEs extras 👇
+            let filaTimes = resto;
             for (let i = 0; i < totalJogos; i++) {
-                let tA = classif.shift(); // Puxa o primeiro time da lista
-                let tB;
-
-                if (numByes > 0) {
-                    tB = "Avança Direto (BYE)"; // Se ainda tem vaga fantasma, joga ela aqui
-                    numByes--;
-                } else {
-                    tB = classif.shift(); // Se acabaram os fantasmas, puxa um time real contra ele
+                if (!rod1[i].timeA) {
+                    rod1[i].timeA = filaTimes.shift(); // Puxa um time da fila
                 }
-                rod1.push({ timeA: tA, timeB: tB });
+                if (!rod1[i].timeB) {
+                    if (numByes > 0) {
+                        rod1[i].timeB = "Avança Direto (BYE)"; // Preenche fantasma se sobrar
+                        numByes--;
+                    } else {
+                        rod1[i].timeB = filaTimes.shift(); // Puxa oponente da fila
+                    }
+                }
             }
             
             window.fasesMataMata.push({ jogos: rod1 });
