@@ -948,6 +948,9 @@
                 
                 document.getElementById('chavesGeradasUI').innerHTML = '<h4 style="text-align:center; padding: 20px; color: var(--gray);">⚔️ Torneio Apenas Mata-Mata</h4>';
                 renderizarMataMata(window.fasesMataMata);
+
+                // 👇 TRUQUE MÁGICO AQUI TAMBÉM 👇
+                setTimeout(() => { avancarVencedorMataMata(); }, 600);
             }
 
             document.getElementById('btnGerarChaves').innerHTML = "⚙️ Gerar Chaves / Grupos";
@@ -1047,22 +1050,38 @@
                 
                 rodada.forEach(jogo => {
                     let tA = jogo.timeA || "Aguardando...", tB = jogo.timeB || "Aguardando...";
-                    let hideBtn = (tA.includes("Aguardando") || tB.includes("Aguardando") || !isLogged) ? "hidden" : "";
                     let matchId = tA.replace(/\s+/g, '') + "_vs_" + tB.replace(/\s+/g, '');
                     
-                    let isResolvido = jogosSalvos[matchId] ? 'resolvido' : '';
-                    let btnStyle = jogosSalvos[matchId] ? 'background: var(--primary); color: #fff; border: none;' : 'background: transparent; color: var(--primary); border: 1px solid var(--primary);';
-                    let btnText = jogosSalvos[matchId] ? '✅ Salvo!' : '💾 Salvar Placar';
+                    // NOVA LÓGICA: Identifica se é um jogo de "BYE" (Avança Direto)
+                    let isBye = tA.includes("BYE") || tB.includes("BYE");
 
-                    html += `
-                        <div class="bracket-match mata-mata-match ${isResolvido}">
-                            <strong class="t-a" style="color: var(--primary-dark);">${tA}</strong>
-                            ${gerarInputsPlacar(setsAberto, matchId)}
-                            <strong class="t-b" style="color: var(--dark);">${tB}</strong>
-                            <br>
-                            <button onclick="salvarPlacar(this, '${tA}', '${tB}')" class="btn ${hideBtn}" style="${btnStyle}; margin-top:10px;">${btnText}</button>
-                        </div>`;
-                });
+                    if (isBye) {
+                        // UI Especial para quem joga contra o fantasma (sem placar e já resolvido automático)
+                        html += `
+                            <div class="bracket-match mata-mata-match resolvido" style="background: rgba(12, 232, 126, 0.05); border-left-color: var(--primary);">
+                                <strong class="t-a" style="color: var(--primary-dark);">${tA}</strong>
+                                <div style="margin: 15px 0; color: var(--primary); font-size: 0.95rem; font-weight: bold; background: #0b0c0f; padding: 10px; border-radius: 8px; border: 1px dashed var(--primary);">
+                                    🚀 Avança Direto
+                                </div>
+                                <strong class="t-b" style="color: var(--dark);">${tB}</strong>
+                            </div>`;
+                    } else {
+                        // UI Normal para jogos reais (Mantém os inputs e o botão)
+                        let hideBtn = (tA.includes("Aguardando") || tB.includes("Aguardando") || !isLogged) ? "hidden" : "";
+                        let isResolvido = jogosSalvos[matchId] ? 'resolvido' : '';
+                        let btnStyle = jogosSalvos[matchId] ? 'background: var(--primary); color: #fff; border: none;' : 'background: transparent; color: var(--primary); border: 1px solid var(--primary);';
+                        let btnText = jogosSalvos[matchId] ? '✅ Salvo!' : '💾 Salvar Placar';
+
+                        html += `
+                            <div class="bracket-match mata-mata-match ${isResolvido}">
+                                <strong class="t-a" style="color: var(--primary-dark);">${tA}</strong>
+                                ${gerarInputsPlacar(setsAberto, matchId)}
+                                <strong class="t-b" style="color: var(--dark);">${tB}</strong>
+                                <br>
+                                <button onclick="salvarPlacar(this, '${tA}', '${tB}')" class="btn ${hideBtn}" style="${btnStyle}; margin-top:10px;">${btnText}</button>
+                            </div>`;
+                    }
+                });;
                 html += '</div>';
             });
             
@@ -1192,6 +1211,9 @@
             
             renderizarMataMata(window.fasesMataMata);
             document.getElementById('mataMataUI').scrollIntoView({ behavior: 'smooth' });
+            
+            // 👇 TRUQUE MÁGICO: Empurra automaticamente quem pegou "BYE" para a próxima fase! 👇
+            setTimeout(() => { avancarVencedorMataMata(); }, 600);
         });
 
         form.addEventListener('submit', async (e) => {
