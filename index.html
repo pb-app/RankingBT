@@ -341,6 +341,41 @@
                         <option value="melhor-de-3">Melhor de 3 (Normal)</option>
                     </select>
                 </div>
+
+                <div class="form-group">
+                    <label>🏆 Distribuição de Pontos para o Ranking</label>
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(110px, 1fr)); gap: 10px; background: #0b0c0f; padding: 15px; border-radius: 10px; border: 1px solid var(--border); margin-top: 5px;">
+                        <div>
+                            <label style="font-size: 0.75rem; color: var(--gray); margin-bottom: 2px;">🥇 Campeão</label>
+                            <input type="number" id="ptsCampeao" class="form-control" value="100" style="padding: 0.5rem; text-align: center;" required>
+                        </div>
+                        <div>
+                            <label style="font-size: 0.75rem; color: var(--gray); margin-bottom: 2px;">🥈 Vice</label>
+                            <input type="number" id="ptsVice" class="form-control" value="80" style="padding: 0.5rem; text-align: center;" required>
+                        </div>
+                        <div>
+                            <label style="font-size: 0.75rem; color: var(--gray); margin-bottom: 2px;">🥉 3º Lugar</label>
+                            <input type="number" id="ptsTerceiro" class="form-control" value="60" style="padding: 0.5rem; text-align: center;" required>
+                        </div>
+                        <div>
+                            <label style="font-size: 0.75rem; color: var(--gray); margin-bottom: 2px;">🏅 Semifinal (4º)</label>
+                            <input type="number" id="ptsSemi" class="form-control" value="50" style="padding: 0.5rem; text-align: center;" required>
+                        </div>
+                        <div>
+                            <label style="font-size: 0.75rem; color: var(--gray); margin-bottom: 2px;">🏅 Quartas</label>
+                            <input type="number" id="ptsQuartas" class="form-control" value="40" style="padding: 0.5rem; text-align: center;" required>
+                        </div>
+                        <div>
+                            <label style="font-size: 0.75rem; color: var(--gray); margin-bottom: 2px;">🏅 Oitavas</label>
+                            <input type="number" id="ptsOitavas" class="form-control" value="30" style="padding: 0.5rem; text-align: center;" required>
+                        </div>
+                        <div>
+                            <label style="font-size: 0.75rem; color: var(--gray); margin-bottom: 2px;">🎾 Participação</label>
+                            <input type="number" id="ptsGrupos" class="form-control" value="15" style="padding: 0.5rem; text-align: center;" title="Pontos para quem parou na fase de grupos" required>
+                        </div>
+                    </div>
+                </div>
+                
                 <button type="submit" class="btn">Salvar Campeonato</button>
                 <button type="button" id="btnCancelCreate" class="btn btn-outline" style="margin-left: 10px;">Cancelar</button>
             </form>
@@ -1226,6 +1261,18 @@
                     ranking: document.getElementById('rankingVinculado').options[document.getElementById('rankingVinculado').selectedIndex].text,
                     formato: document.querySelector('input[name="formato"]:checked').parentElement.textContent.trim(),
                     sets: document.getElementById('qtdSets').options[document.getElementById('qtdSets').selectedIndex].text,
+                    
+                    // NOVA PARTE: Salvando os pontos personalizados
+                    pontosConfig: {
+                        campeao: parseInt(document.getElementById('ptsCampeao').value) || 100,
+                        vice: parseInt(document.getElementById('ptsVice').value) || 80,
+                        terceiro: parseInt(document.getElementById('ptsTerceiro').value) || 60,
+                        semi: parseInt(document.getElementById('ptsSemi').value) || 50,
+                        quartas: parseInt(document.getElementById('ptsQuartas').value) || 40,
+                        oitavas: parseInt(document.getElementById('ptsOitavas').value) || 30,
+                        participacao: parseInt(document.getElementById('ptsGrupos').value) || 15
+                    },
+                    
                     dataCriacao: serverTimestamp()
                 });
                 form.reset(); createSection.style.display = 'none'; alert('Campeonato Criado!');
@@ -1387,10 +1434,13 @@ function verificarEGerarPodio(fasesArray) {
             let rankingNome = torneioAbertoData.ranking; 
             let pontuacaoTimes = {};
             
-            // 1. Dá 5 pontos de participação para todos os inscritos
+            // Puxa a configuração de pontos salva no torneio (ou usa os valores padrão de segurança)
+            let ptsConfig = torneioAbertoData.pontosConfig || { campeao: 100, vice: 80, terceiro: 60, semi: 50, quartas: 40, oitavas: 30, participacao: 15 };
+
+            // 1. Dá os pontos base de participação (Fase de Grupos) para todos os inscritos
             inscritosAtuais.forEach(insc => {
                 let nomeTime = insc.jogador2 ? `${insc.jogador1} & ${insc.jogador2}` : insc.jogador1;
-                pontuacaoTimes[nomeTime] = 5;
+                pontuacaoTimes[nomeTime] = ptsConfig.participacao;
             });
 
             // 2. Analisa o Mata-Mata para subir os pontos de quem avançou
@@ -1399,6 +1449,7 @@ function verificarEGerarPodio(fasesArray) {
                 let isFinal = index === window.fasesMataMata.length - 1;
                 let isSemi = index === window.fasesMataMata.length - 2;
                 let isQuartas = index === window.fasesMataMata.length - 3;
+                let isOitavas = index === window.fasesMataMata.length - 4; // Adicionado Oitavas!
 
                 jogos.forEach(jogo => {
                     let matchId = jogo.timeA.replace(/\s+/g, '') + "_vs_" + jogo.timeB.replace(/\s+/g, '');
@@ -1407,16 +1458,19 @@ function verificarEGerarPodio(fasesArray) {
                         let vencedor = salvo.vencedor;
                         let perdedor = (vencedor === jogo.timeA) ? jogo.timeB : jogo.timeA;
 
+                        // Se o time perdeu nesta fase, ele ganha a pontuação equivalente àquela fase
+                        if (isOitavas) {
+                            if(pontuacaoTimes[perdedor] < ptsConfig.oitavas) pontuacaoTimes[perdedor] = ptsConfig.oitavas;
+                        }
                         if (isQuartas) {
-                            if(pontuacaoTimes[vencedor] < 30) pontuacaoTimes[vencedor] = 30; // Garante a Semi
-                            if(pontuacaoTimes[perdedor] < 15) pontuacaoTimes[perdedor] = 15; // Caiu nas Quartas
+                            if(pontuacaoTimes[perdedor] < ptsConfig.quartas) pontuacaoTimes[perdedor] = ptsConfig.quartas;
                         }
                         if (isSemi) {
-                            if(pontuacaoTimes[vencedor] < 70) pontuacaoTimes[vencedor] = 70; // Garante a Final
+                            if(pontuacaoTimes[perdedor] < ptsConfig.semi) pontuacaoTimes[perdedor] = ptsConfig.semi; 
                         }
                         if (isFinal) {
-                            pontuacaoTimes[vencedor] = 100; // Campeão
-                            pontuacaoTimes[perdedor] = 70;  // Vice
+                            pontuacaoTimes[vencedor] = ptsConfig.campeao; // Campeão
+                            pontuacaoTimes[perdedor] = ptsConfig.vice;  // Vice
                             
                             // Acha o 3º Lugar (perdeu pro campeão na Semi)
                             if (window.fasesMataMata.length >= 2) {
@@ -1424,7 +1478,7 @@ function verificarEGerarPodio(fasesArray) {
                                 let jogoDoCampeaoNaSemi = semiJogos.find(j => j.timeA === vencedor || j.timeB === vencedor);
                                 if (jogoDoCampeaoNaSemi) {
                                     let terceiro = (jogoDoCampeaoNaSemi.timeA === vencedor) ? jogoDoCampeaoNaSemi.timeB : jogoDoCampeaoNaSemi.timeA;
-                                    pontuacaoTimes[terceiro] = 50; // 3º Colocado
+                                    pontuacaoTimes[terceiro] = ptsConfig.terceiro; // 3º Colocado
                                 }
                             }
                         }
