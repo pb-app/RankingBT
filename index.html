@@ -116,6 +116,9 @@
 
         /* Responsividade Profissional para Celular */
         @media (max-width: 768px) { 
+            /* 👇 NOVA CORREÇÃO: Reduzimos o padding lateral para 10px para expandir o conteúdo no celular 👇 */
+            main { padding: 3rem 10px; }
+
             .panel-grid { grid-template-columns: 1fr !important; } 
             
             /* Empilha o cabeçalho */
@@ -204,9 +207,9 @@
 
 
         /* ========================================================
-           🪄 TRUQUE MÁGICO: Correções p/ Elementos do JavaScript 
-           (Isso evita que você tenha que alterar o JS para o tema novo)
-           ======================================================== */
+            🪄 TRUQUE MÁGICO: Correções p/ Elementos do JavaScript 
+            (Isso evita que você tenha que alterar o JS para o tema novo)
+            ======================================================== */
         
         /* Abas do Header */
         #nav-menu .btn { border-radius: 8px !important; border: 1.5px solid transparent !important; }
