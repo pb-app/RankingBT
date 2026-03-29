@@ -697,7 +697,8 @@
                     const li = document.createElement('li');
                     li.style.cssText = "display: flex; justify-content: space-between; align-items: center;";
                     
-                    let nomes = dados.jogador2 ? `🎾 <strong>${dados.jogador1}</strong> e <strong>${dados.jogador2}</strong>` : `🎾 <strong>${dados.jogador1}</strong>`;
+                    let star = dados.isSeed ? ' ⭐' : '';
+                    let nomes = dados.jogador2 ? `🎾 <strong>${dados.jogador1}</strong> e <strong>${dados.jogador2}</strong>${star}` : `🎾 <strong>${dados.jogador1}</strong>${star}`;
                     
                     // Cria o botão de excluir apenas se estiver logado
                     let btnExcluir = isLogged ? `<button onclick="deletarInscrito('${idInscrito}')" class="btn btn-outline" style="padding: 2px 8px; font-size: 0.8rem; border-color: #e74c3c; color: #e74c3c;">🗑️ Excluir</button>` : '';
@@ -750,9 +751,13 @@
 
             document.getElementById('btnAddInscrito').disabled = true;
             try {
-                await addDoc(collection(db, "campeonatos", torneioAbertoId, "inscritos"), { jogador1: j1, jogador2: j2, dataCriacao: serverTimestamp() });
+                // 👇 SALVA A INFORMAÇÃO DA ESTRELINHA 👇
+                let isSeed = document.getElementById('isCabecaDeChave').checked;
+                await addDoc(collection(db, "campeonatos", torneioAbertoId, "inscritos"), { jogador1: j1, jogador2: j2, isSeed: isSeed, dataCriacao: serverTimestamp() });
+                
                 document.getElementById('nomeJogador1').value = ''; document.getElementById('nomeJogador2').value = '';
-                document.getElementById('nomeJogador1').focus(); // Volta o ponteiro pro primeiro input
+                document.getElementById('isCabecaDeChave').checked = false; // Desmarca a caixa
+                document.getElementById('nomeJogador1').focus(); 
             } catch (error) { alert("Erro ao inscrever."); } 
             finally { document.getElementById('btnAddInscrito').disabled = false; }
         });
@@ -1911,7 +1916,7 @@ function verificarEGerarPodio(fasesArray) {
             
             if (i1 === i2) { alert("🚨 Escolha duas duplas diferentes para trocar!"); return; }
             
-            if (Object.keys(jogosSalvos).length > 0) {a
+            if (Object.keys(jogosSalvos).length > 0) {
                 if(!confirm("⚠️ ATENÇÃO! Você já tem jogos com placar salvo. Trocar duplas agora vai misturar os placares. Tem certeza absoluta?")) return;
             }
             
