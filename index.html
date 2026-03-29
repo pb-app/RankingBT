@@ -456,6 +456,11 @@
                     <div class="form-group" id="area-add-inscritos" style="margin-top: 10px;">
                         <input type="text" id="nomeJogador1" list="sugestoesJogadores" class="form-control" placeholder="Nome do Jogador 1 (Obrigatório)" style="margin-bottom: 8px;">
                         <input type="text" id="nomeJogador2" list="sugestoesJogadores" class="form-control" placeholder="Nome do Jogador 2 (Deixe em branco se for Simples)">
+
+                        <div style="display: flex; align-items: center; gap: 10px; margin: 15px 0 5px 0;">
+    <input type="checkbox" id="isCabecaDeChave" style="width: 18px; height: 18px; accent-color: #ffd700;">
+    <label for="isCabecaDeChave" style="margin: 0; color: #ffd700; font-weight: bold; font-size: 0.9rem;">⭐ Cabeça de Chave (Separar no sorteio)</label>
+</div>
                         
                         <datalist id="sugestoesJogadores"></datalist>
                         
@@ -484,6 +489,16 @@
                         </div>
                         <button id="btnFaseProxima" class="btn btn-outline" style="color: var(--white); border-color: var(--white); padding: 5px 15px; font-size: 1.2rem;">➡</button>
                     </div>
+
+                    <div id="painelTrocaGrupos" class="hidden" style="background: #12141a; padding: 15px; border-radius: 8px; border: 1px dashed var(--primary); margin-top: 15px; margin-bottom: 20px;">
+    <h4 style="color: var(--primary); margin-bottom: 10px; font-size: 1rem;">🔄 Troca Manual (Mão de Deus)</h4>
+    <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+        <select id="trocaTime1" class="form-control" style="flex: 1; min-width: 130px;"></select>
+        <span style="color: var(--gray);">com</span>
+        <select id="trocaTime2" class="form-control" style="flex: 1; min-width: 130px;"></select>
+        <button id="btnEfetuarTroca" class="btn" style="padding: 10px 20px;">Trocar de Grupo</button>
+    </div>
+</div>
 
                     <div id="chavesGeradasUI" style="margin-top: 15px;"></div>
 
@@ -874,6 +889,20 @@
             const chavesUI = document.getElementById('chavesGeradasUI');
             let html = '';
 
+            // 👇 EXIBE O PAINEL DE TROCA APENAS SE ESTIVER LOGADO E NOS GRUPOS 👇
+            if (isLogged && formatoAberto.includes("Grupos") && window.fasesMataMata.length === 0) {
+                document.getElementById('painelTrocaGrupos').classList.remove('hidden');
+                let s1 = document.getElementById('trocaTime1'); let s2 = document.getElementById('trocaTime2');
+                s1.innerHTML = ''; s2.innerHTML = '';
+                sorteados.forEach((insc, i) => {
+                    let nome = insc.jogador2 ? `${insc.jogador1} & ${insc.jogador2}` : insc.jogador1;
+                    let opt = `<option value="${i}">${nome}</option>`;
+                    s1.innerHTML += opt; s2.innerHTML += opt;
+                });
+            } else {
+                document.getElementById('painelTrocaGrupos').classList.add('hidden');
+            }
+
             if (formatoAberto.includes("Grupos")) {
                 
                 // --- NOVA LÓGICA INTELIGENTE DE GRUPOS ---
@@ -960,7 +989,14 @@
                 if (!confirm("O torneio já foi sorteado! Gerar novamente vai APAGAR e misturar o chaveamento. Tem certeza?")) return;
             }
 
-            const sorteados = [...inscritosAtuais].sort(() => Math.random() - 0.5);
+            // 👇 LÓGICA INTELIGENTE: Separa os cabeças de chave do resto
+            let seeds = inscritosAtuais.filter(i => i.isSeed).sort(() => Math.random() - 0.5);
+            let normais = inscritosAtuais.filter(i => !i.isSeed).sort(() => Math.random() - 0.5);
+            
+            // Coloca os cabeças de chave no começo da fila!
+            // O sistema distribui as equipes como se fosse dar cartas de baralho.
+            // Ao colocar as estrelas primeiro, ele garante que cada estrela vá para um grupo diferente!
+            const sorteados = [...seeds, ...normais];
             
             document.getElementById('btnGerarChaves').textContent = "Gerando e Salvando...";
             
@@ -1867,6 +1903,34 @@ function verificarEGerarPodio(fasesArray) {
         document.getElementById('btnFecharIosPopup').addEventListener('click', () => {
             document.getElementById('iosInstallPopup').classList.add('hidden');
         });
+
+        // MOTOR DA MÃO DE DEUS (Troca de Duplas)
+        document.getElementById('btnEfetuarTroca').addEventListener('click', async () => {
+            let i1 = document.getElementById('trocaTime1').value;
+            let i2 = document.getElementById('trocaTime2').value;
+            
+            if (i1 === i2) { alert("🚨 Escolha duas duplas diferentes para trocar!"); return; }
+            
+            if (Object.keys(jogosSalvos).length > 0) {a
+                if(!confirm("⚠️ ATENÇÃO! Você já tem jogos com placar salvo. Trocar duplas agora vai misturar os placares. Tem certeza absoluta?")) return;
+            }
+            
+            document.getElementById('btnEfetuarTroca').textContent = "Trocando...";
+            
+            // A Mágica: Inverte as duas duplas de posição no array oficial!
+            let temp = torneioAbertoData.sorteados[i1];
+            torneioAbertoData.sorteados[i1] = torneioAbertoData.sorteados[i2];
+            torneioAbertoData.sorteados[i2] = temp;
+            
+            // Salva no banco de dados
+            await updateDoc(doc(db, "campeonatos", torneioAbertoId), { sorteados: torneioAbertoData.sorteados });
+            
+            // Redesenha os grupos na hora
+            renderizarGrupos(torneioAbertoData.sorteados);
+            document.getElementById('btnEfetuarTroca').textContent = "Trocar de Grupo";
+        });
+
+        
     </script>
 </body>
 </html>
