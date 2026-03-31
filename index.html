@@ -1572,15 +1572,16 @@ function verificarEGerarPodio(fasesArray) {
 
             // 2. Analisa o Mata-Mata para subir os pontos de quem avançou
             window.fasesMataMata.forEach((faseData, index) => {
-                let jogos = faseData.jogos ? faseData.jogos : faseData;
-                let isFinal = index === window.fasesMataMata.length - 1;
-                let isSemi = index === window.fasesMataMata.length - 2;
-                let isQuartas = index === window.fasesMataMata.length - 3;
-                let isOitavas = index === window.fasesMataMata.length - 4; // Adicionado Oitavas!
+            let jogos = faseData.jogos ? faseData.jogos : faseData;
+            let isFinal = index === window.fasesMataMata.length - 1;
+            let isSemi = index === window.fasesMataMata.length - 2;
+            let isQuartas = index === window.fasesMataMata.length - 3;
+            let isOitavas = index === window.fasesMataMata.length - 4; // Adicionado Oitavas!
 
-                jogos.forEach(jogo => {
-                    let matchId = jogo.timeA.replace(/\s+/g, '') + "_vs_" + jogo.timeB.replace(/\s+/g, '');
-                    let salvo = jogosSalvos[matchId];
+            jogos.forEach(jogo => {
+                // 👇 LINHA CORRIGIDA: Agora ele procura usando a tag MM_ e o index da rodada
+                let matchId = "MM_" + index + "_" + jogo.timeA.replace(/\s+/g, '') + "_vs_" + jogo.timeB.replace(/\s+/g, '');
+                let salvo = jogosSalvos[matchId];
                     if (salvo && salvo.vencedor) {
                         let vencedor = salvo.vencedor;
                         let perdedor = (vencedor === jogo.timeA) ? jogo.timeB : jogo.timeA;
