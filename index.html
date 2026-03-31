@@ -1226,28 +1226,35 @@
             rounds.forEach((round, roundIndex) => {
                 let vencedores = [];
                 
-                round.querySelectorAll('.mata-mata-match.resolvido').forEach(jogo => {
-                    let tA = jogo.querySelector('.t-a').innerText;
-                    let tB = jogo.querySelector('.t-b').innerText;
+                // LÓGICA BLINDADA 1: Pega TODOS os jogos, não apenas os resolvidos, para manter a ordem da chave
+                round.querySelectorAll('.mata-mata-match').forEach(jogo => {
                     
-                    if (tB.includes("BYE")) { vencedores.push(tA); return; }
-                    if (tA.includes("BYE")) { vencedores.push(tB); return; }
+                    // LÓGICA BLINDADA 2: Usar textContent no lugar de innerText para ler os nomes mesmo nas abas ocultas!
+                    let tA = jogo.querySelector('.t-a').textContent;
+                    let tB = jogo.querySelector('.t-b').textContent;
+                    
+                    if (jogo.classList.contains('resolvido')) {
+                        if (tB.includes("BYE")) { vencedores.push(tA); return; }
+                        if (tA.includes("BYE")) { vencedores.push(tB); return; }
 
-                    let iA = jogo.querySelectorAll('.p-timeA'), iB = jogo.querySelectorAll('.p-timeB');
-                    let gA=0, gB=0, sA=0, sB=0;
-                    
-                    iA.forEach((inp, i) => { 
-                        let va=parseInt(inp.value)||0, vb=parseInt(iB[i].value)||0; 
-                        gA+=va; gB+=vb; 
-                        if(va>vb) sA++; if(vb>va) sB++; 
-                    });
-                    
-                    vencedores.push((sA>sB || (sA===sB && gA>gB)) ? tA : tB);
+                        let iA = jogo.querySelectorAll('.p-timeA'), iB = jogo.querySelectorAll('.p-timeB');
+                        let gA=0, gB=0, sA=0, sB=0;
+                        
+                        iA.forEach((inp, i) => { 
+                            let va=parseInt(inp.value)||0, vb=parseInt(iB[i].value)||0; 
+                            gA+=va; gB+=vb; 
+                            if(va>vb) sA++; if(vb>va) sB++; 
+                        });
+                        
+                        vencedores.push((sA>sB || (sA===sB && gA>gB)) ? tA : tB);
+                    } else {
+                        // LÓGICA BLINDADA 3: Se o jogo não acabou, empurra um espaço vazio para o próximo jogo não "roubar" a vaga
+                        vencedores.push("Aguardando...");
+                    }
                 });
 
                 if (window.fasesMataMata[roundIndex + 1] && vencedores.length > 0) {
                     let iv = 0;
-                    // Procura pela lista de jogos dentro da próxima rodada
                     let proxRodada = window.fasesMataMata[roundIndex + 1].jogos || window.fasesMataMata[roundIndex + 1];
                     proxRodada.forEach(pJogo => {
                         pJogo.timeA = vencedores[iv] || "Aguardando..."; iv++;
@@ -1257,7 +1264,7 @@
             });
             
             await updateDoc(doc(db, "campeonatos", torneioAbertoId), { fasesMataMata: window.fasesMataMata });
-            renderizarMataMata(window.fasesMataMata, true); // O "true" trava a aba no lugar!
+            renderizarMataMata(window.fasesMataMata, true); // O "true" trava a aba atual no lugar!
         };
         
         // 3. ATUALIZADO: Montar o Mata-Mata (Correção do Bug do Ranking e Matemática de Chaves)
