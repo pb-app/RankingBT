@@ -813,7 +813,7 @@
             }
         };
 
-        window.salvarPlacar = async function(botao, timeA, timeB) {
+        window.salvarPlacar = async function(botao, timeA, timeB, matchIdPersonalizado) { // 👈 MUDANÇA AQUI
             const matchBox = botao.closest('.match-box') || botao.closest('.bracket-match');
             const isMataMata = matchBox.classList.contains('mata-mata-match');
             const inputsA = matchBox.querySelectorAll('.p-timeA');
@@ -830,7 +830,8 @@
             if (sA > sB || (sA === sB && gA > gB)) vencedor = timeA;
             else if (sB > sA || (sB === sA && gB > gA)) vencedor = timeB;
 
-            let matchId = timeA.replace(/\s+/g, '') + "_vs_" + timeB.replace(/\s+/g, '');
+            // 👇 Usa o ID personalizado do Mata-Mata se existir, senão usa o padrão dos Grupos
+            let matchId = matchIdPersonalizado || (timeA.replace(/\s+/g, '') + "_vs_" + timeB.replace(/\s+/g, ''));
             botao.textContent = 'Salvando...'; botao.disabled = true;
 
             try {
@@ -945,7 +946,7 @@
                             let btnText = jogosSalvos[matchId] ? '✅ Salvo!' : '💾 Salvar Placar';
                             let hideSave = isLogged ? '' : 'hidden'; 
 
-                            html += `<div class="match-box ${isResolvido}"><strong class="t-a" style="color: var(--primary-dark);">${tA}</strong>${gerarInputsPlacar(setsAberto, matchId)}<strong class="t-b" style="color: var(--dark);">${tB}</strong><br><button onclick="salvarPlacar(this, '${tA}', '${tB}')" class="btn ${hideSave}" style="${btnStyle}; margin-top: 10px;">${btnText}</button></div>`;
+                            html += `<div class="match-box ${isResolvido}"><strong class="t-a" style="color: var(--primary-dark);">${tA}</strong>${gerarInputsPlacar(setsAberto, matchId)}<strong class="t-b" style="color: var(--dark);">${tB}</strong><br><button onclick="salvarPlacar(this, '${tA}', '${tB}', '${matchId}')" class="btn ${hideSave}" style="${btnStyle}; margin-top: 10px;">${btnText}</button></div>`;
                         }
                     }
                     html += `<div class="tabela-container"></div></div>`;
@@ -1162,8 +1163,9 @@
                 html += `<div class="bracket-round">`;
                 
                 rodada.forEach(jogo => {
-                    let tA = jogo.timeA || "Aguardando...", tB = jogo.timeB || "Aguardando...";
-                    let matchId = tA.replace(/\s+/g, '') + "_vs_" + tB.replace(/\s+/g, '');
+                   let tA = jogo.timeA || "Aguardando...", tB = jogo.timeB || "Aguardando...";
+                    // 👇 MUDANÇA: Adiciona "MM_" e a rodada para o ID ser exclusivo do Mata-Mata
+                   let matchId = "MM_" + rodadaIndex + "_" + tA.replace(/\s+/g, '') + "_vs_" + tB.replace(/\s+/g, '');
                     
                     // NOVA LÓGICA: Identifica se é um jogo de "BYE" (Avança Direto)
                     let isBye = tA.includes("BYE") || tB.includes("BYE");
@@ -1191,7 +1193,7 @@
                                 ${gerarInputsPlacar(setsAberto, matchId)}
                                 <strong class="t-b" style="color: var(--dark);">${tB}</strong>
                                 <br>
-                                <button onclick="salvarPlacar(this, '${tA}', '${tB}')" class="btn ${hideBtn}" style="${btnStyle}; margin-top:10px;">${btnText}</button>
+                                <button onclick="salvarPlacar(this, '${tA}', '${tB}', '${matchId}')" class="btn ${hideBtn}" style="${btnStyle}; margin-top:10px;">${btnText}</button>
                             </div>`;
                     }
                 });;
@@ -1469,9 +1471,9 @@ function verificarEGerarPodio(fasesArray) {
     // Só avança se o jogo final existir E se os times já estiverem definidos (não forem null)
     if (!finalMatch || !finalMatch.timeA || !finalMatch.timeB) return; 
 
-    // Constrói o identificador único para essa partida final
-    const finalId = finalMatch.timeA.replace(/\s+/g, '') + "_vs_" + finalMatch.timeB.replace(/\s+/g, '');
-
+    // Constrói o identificador único para essa partida final (compatível com o Mata-Mata)
+    const finalId = "MM_" + finalRoundIndex + "_" + finalMatch.timeA.replace(/\s+/g, '') + "_vs_" + finalMatch.timeB.replace(/\s+/g, '');
+    
     // --------------------------------------------------------------------------------------
     // ETAPA 3: A MÁGICA DA CORREÇÃO
     // --------------------------------------------------------------------------------------
