@@ -267,23 +267,31 @@
             <p style="color: var(--gray); margin-bottom: 20px; font-size: 0.85rem; text-transform: uppercase; letter-spacing: 1px;">Estatísticas Oficiais</p>
             
             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; background: #0b0c0f; padding: 20px; border-radius: 12px; margin-bottom: 20px; border: 1px solid var(--border);">
-                <div style="background: var(--white); padding: 10px; border-radius: 8px; border-bottom: 3px solid var(--primary);">
-                    <div style="font-size: 1.8rem; font-weight: bold; color: var(--primary);" id="perfilPontos">0</div>
-                    <div style="font-size: 0.75rem; color: var(--gray); text-transform: uppercase; font-weight: 600;">Pontos</div>
-                </div>
-                <div style="background: var(--white); padding: 10px; border-radius: 8px; border-bottom: 3px solid #3498db;">
-                    <div style="font-size: 1.8rem; font-weight: bold; color: #3498db;" id="perfilTorneios">0</div>
-                    <div style="font-size: 0.75rem; color: var(--gray); text-transform: uppercase; font-weight: 600;">Torneios</div>
-                </div>
-                <div style="background: var(--white); padding: 10px; border-radius: 8px; border-bottom: 3px solid #ffd700;">
-                    <div style="font-size: 1.8rem; font-weight: bold; color: #ffd700;" id="perfilTitulos">0</div>
-                    <div style="font-size: 0.75rem; color: var(--gray); text-transform: uppercase; font-weight: 600;">Títulos 🥇</div>
-                </div>
-                <div style="background: var(--white); padding: 10px; border-radius: 8px; border-bottom: 3px solid #e74c3c;">
-                    <div style="font-size: 1.8rem; font-weight: bold; color: #e74c3c;" id="perfilAproveitamento">0%</div>
-                    <div style="font-size: 0.75rem; color: var(--gray); text-transform: uppercase; font-weight: 600;">Vitórias</div>
-                </div>
-            </div>
+    <div style="background: var(--white); padding: 10px; border-radius: 8px; border-bottom: 3px solid var(--primary);">
+        <div style="font-size: 1.8rem; font-weight: bold; color: var(--primary);" id="perfilPontos">0</div>
+        <div style="font-size: 0.75rem; color: var(--gray); text-transform: uppercase; font-weight: 600;">Pontos</div>
+    </div>
+    <div style="background: var(--white); padding: 10px; border-radius: 8px; border-bottom: 3px solid #3498db;">
+        <div style="font-size: 1.8rem; font-weight: bold; color: #3498db;" id="perfilTorneios">0</div>
+        <div style="font-size: 0.75rem; color: var(--gray); text-transform: uppercase; font-weight: 600;">Torneios</div>
+    </div>
+    <div style="background: var(--white); padding: 10px; border-radius: 8px; border-bottom: 3px solid #ffd700;">
+        <div style="font-size: 1.8rem; font-weight: bold; color: #ffd700;" id="perfilTitulos">0</div>
+        <div style="font-size: 0.75rem; color: var(--gray); text-transform: uppercase; font-weight: 600;">Títulos 🥇</div>
+    </div>
+    <div style="background: var(--white); padding: 10px; border-radius: 8px; border-bottom: 3px solid #9b59b6;">
+        <div style="font-size: 1.8rem; font-weight: bold; color: #9b59b6;" id="perfilAproveitamento">0%</div>
+        <div style="font-size: 0.75rem; color: var(--gray); text-transform: uppercase; font-weight: 600;">Desempenho</div>
+    </div>
+    <div style="background: var(--white); padding: 10px; border-radius: 8px; border-bottom: 3px solid #2ecc71;">
+        <div style="font-size: 1.8rem; font-weight: bold; color: #2ecc71;" id="perfilVitorias">0</div>
+        <div style="font-size: 0.75rem; color: var(--gray); text-transform: uppercase; font-weight: 600;">Vitórias ✅</div>
+    </div>
+    <div style="background: var(--white); padding: 10px; border-radius: 8px; border-bottom: 3px solid #e74c3c;">
+        <div style="font-size: 1.8rem; font-weight: bold; color: #e74c3c;" id="perfilDerrotas">0</div>
+        <div style="font-size: 0.75rem; color: var(--gray); text-transform: uppercase; font-weight: 600;">Derrotas ❌</div>
+    </div>
+</div>
             
             <button type="button" id="btnFecharPerfil" class="btn btn-outline" style="width: 100%;">Fechar Painel</button>
         </div>
@@ -1727,12 +1735,12 @@ function verificarEGerarPodio(fasesArray) {
                 let titulos = jog.titulos || 0;
                 let vitorias = jog.vitorias || 0;
                 let jogos = jog.jogos || 0;
-                let aproveitamento = jogos > 0 ? Math.round((vitorias / jogos) * 100) : 0;
+          // Deletamos a linha do aproveitamento daqui porque a função do perfil já faz isso agora!
 
-                html += `<tr>
-                    <td><strong>${icone}</strong></td>
-                    <td style="text-align:left;">
-                        <a href="#" onclick="abrirPerfilJogador('${jog.nome}', ${jog.pontos}, ${jog.torneios}, ${titulos}, ${aproveitamento})" style="color: var(--primary-dark); text-decoration: none; font-weight: bold; border-bottom: 1px dashed var(--primary); cursor: pointer;">
+     html += `<tr>
+    <td><strong>${icone}</strong></td>
+    <td style="text-align:left;">
+        <a href="#" onclick="abrirPerfilJogador('${jog.nome}', ${jog.pontos}, ${jog.torneios}, ${titulos}, ${vitorias}, ${jogos})" style="color: var(--primary-dark); text-decoration: none; font-weight: bold; border-bottom: 1px dashed var(--primary); cursor: pointer;">
                             ${jog.nome}
                         </a>
                     </td>
@@ -1835,15 +1843,22 @@ function verificarEGerarPodio(fasesArray) {
         // --- LÓGICA DO PERFIL DO JOGADOR ---
         const modalPerfilJogador = document.getElementById('modalPerfilJogador');
 
-        window.abrirPerfilJogador = function(nome, pontos, torneios, titulos = 0, aproveitamento = 0) {
-            document.getElementById('perfilNome').textContent = nome;
-            document.getElementById('perfilPontos').textContent = pontos;
-            document.getElementById('perfilTorneios').textContent = torneios;
-            document.getElementById('perfilTitulos').textContent = titulos;
-            document.getElementById('perfilAproveitamento').textContent = aproveitamento + '%';
-            
-            modalPerfilJogador.classList.remove('hidden');
-        };
+        window.abrirPerfilJogador = function(nome, pontos, torneios, titulos = 0, vitorias = 0, jogos = 0) {
+    // A matemática
+    let derrotas = jogos - vitorias;
+    let aproveitamento = jogos > 0 ? Math.round((vitorias / jogos) * 100) : 0;
+
+    // Preenche a tela
+    document.getElementById('perfilNome').textContent = nome;
+    document.getElementById('perfilPontos').textContent = pontos;
+    document.getElementById('perfilTorneios').textContent = torneios;
+    document.getElementById('perfilTitulos').textContent = titulos;
+    document.getElementById('perfilVitorias').textContent = vitorias;
+    document.getElementById('perfilDerrotas').textContent = derrotas;
+    document.getElementById('perfilAproveitamento').textContent = aproveitamento + '%';
+    
+    modalPerfilJogador.classList.remove('hidden');
+};
 
         // Fechar o Modal
         document.getElementById('btnFecharPerfil').addEventListener('click', () => modalPerfilJogador.classList.add('hidden'));
