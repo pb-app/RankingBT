@@ -821,44 +821,59 @@
             }
         };
 
-        window.salvarPlacar = async function(botao, timeA, timeB, matchIdPersonalizado) { // 👈 MUDANÇA AQUI
-            const matchBox = botao.closest('.match-box') || botao.closest('.bracket-match');
-            const isMataMata = matchBox.classList.contains('mata-mata-match');
-            const inputsA = matchBox.querySelectorAll('.p-timeA');
-            const inputsB = matchBox.querySelectorAll('.p-timeB');
-            let pA = [], pB = [], gA = 0, gB = 0, sA = 0, sB = 0;
-            
-            inputsA.forEach((inp, i) => {
-                let vA = parseInt(inp.value)||0; let vB = parseInt(inputsB[i].value)||0;
-                pA.push(vA); pB.push(vB); gA += vA; gB += vB;
-                if (vA > vB) sA++; if (vB > vA) sB++;
-            });
-
-            let vencedor = "";
-            if (sA > sB || (sA === sB && gA > gB)) vencedor = timeA;
-            else if (sB > sA || (sB === sA && gB > gA)) vencedor = timeB;
-
-            // 👇 Usa o ID personalizado do Mata-Mata se existir, senão usa o padrão dos Grupos
-            let matchId = matchIdPersonalizado || (timeA.replace(/\s+/g, '') + "_vs_" + timeB.replace(/\s+/g, ''));
-            botao.textContent = 'Salvando...'; botao.disabled = true;
-
+        window.salvarPlacar = async function(botao) {
             try {
+                // 1. Identifica a caixa do jogo
+                const matchBox = botao.closest('.match-box') || botao.closest('.bracket-match');
+                const isMataMata = matchBox.classList.contains('mata-mata-match');
+                
+                // 2. Lê os nomes direto da tela (Isso evita o bug das aspas/apóstrofos!)
+                const timeA = matchBox.querySelector('.t-a').textContent;
+                const timeB = matchBox.querySelector('.t-b').textContent;
+                const matchIdPersonalizado = botao.getAttribute('data-matchid');
+
+                const inputsA = matchBox.querySelectorAll('.p-timeA');
+                const inputsB = matchBox.querySelectorAll('.p-timeB');
+                let pA = [], pB = [], gA = 0, gB = 0, sA = 0, sB = 0;
+                
+                inputsA.forEach((inp, i) => {
+                    let vA = parseInt(inp.value)||0; let vB = parseInt(inputsB[i].value)||0;
+                    pA.push(vA); pB.push(vB); gA += vA; gB += vB;
+                    if (vA > vB) sA++; if (vB > vA) sB++;
+                });
+
+                let vencedor = "";
+                if (sA > sB || (sA === sB && gA > gB)) vencedor = timeA;
+                else if (sB > sA || (sB === sA && gB > gA)) vencedor = timeB;
+
+                let matchId = matchIdPersonalizado || (timeA.replace(/\s+/g, '') + "_vs_" + timeB.replace(/\s+/g, ''));
+                
+                botao.textContent = 'Salvando...'; 
+                botao.disabled = true;
+
                 let dadosDoJogo = { timeA, timeB, placarA: pA, placarB: pB, vencedor, fase: isMataMata ? "Eliminatória" : "Grupos", dataRegistro: serverTimestamp() };
                 await setDoc(doc(db, "campeonatos", torneioAbertoId, "jogos", matchId), dadosDoJogo);
                 jogosSalvos[matchId] = dadosDoJogo; 
 
-                botao.textContent = '✅ Salvo!'; botao.style.background = 'var(--primary)'; botao.style.color = '#fff'; botao.style.border = 'none';
+                botao.textContent = '✅ Salvo!'; 
+                botao.style.background = 'var(--primary)'; 
+                botao.style.color = '#fff'; 
+                botao.style.border = 'none';
                 matchBox.classList.add('resolvido');
 
                 if (isMataMata && vencedor !== "") {
                     avancarVencedorMataMata();
                 } else if (!isMataMata) {
-                    // SE FOR FASE DE GRUPOS, ATUALIZA A TABELA SOZINHO!
                     atualizarTabelaDoGrupo(matchBox.closest('.grupo-container'));
                 }
-            } catch(e) { alert("Erro."); botao.textContent = '💾 Salvar Placar'; botao.disabled = false; }
+                
+            } catch (erro) {
+                console.error("Erro fatal:", erro);
+                alert("Erro ao salvar. Verifique o console.");
+                botao.textContent = '💾 Salvar Placar'; 
+                botao.disabled = false;
+            }
         };
-
         // NOVO MOTOR INVISÍVEL DE TABELAS (Sem precisar de botão!)
         window.atualizarTabelaDoGrupo = function(container) {
             const tabelaContainer = container.querySelector('.tabela-container');
@@ -954,7 +969,7 @@
                             let btnText = jogosSalvos[matchId] ? '✅ Salvo!' : '💾 Salvar Placar';
                             let hideSave = isLogged ? '' : 'hidden'; 
 
-                            html += `<div class="match-box ${isResolvido}"><strong class="t-a" style="color: var(--primary-dark);">${tA}</strong>${gerarInputsPlacar(setsAberto, matchId)}<strong class="t-b" style="color: var(--dark);">${tB}</strong><br><button onclick="salvarPlacar(this, '${tA}', '${tB}', '${matchId}')" class="btn ${hideSave}" style="${btnStyle}; margin-top: 10px;">${btnText}</button></div>`;
+                            html += `<div class="match-box ${isResolvido}"><strong class="t-a" style="color: var(--primary-dark);">${tA}</strong>${gerarInputsPlacar(setsAberto, matchId)}<strong class="t-b" style="color: var(--dark);">${tB}</strong><br><button onclick="salvarPlacar(this)" data-matchid="${matchId}" class="btn ${hideSave}" style="${btnStyle}; margin-top: 10px;">${btnText}</button></div>`;
                         }
                     }
                     html += `<div class="tabela-container"></div></div>`;
@@ -1201,7 +1216,7 @@
                                 ${gerarInputsPlacar(setsAberto, matchId)}
                                 <strong class="t-b" style="color: var(--dark);">${tB}</strong>
                                 <br>
-                                <button onclick="salvarPlacar(this, '${tA}', '${tB}', '${matchId}')" class="btn ${hideBtn}" style="${btnStyle}; margin-top:10px;">${btnText}</button>
+                                <button onclick="salvarPlacar(this)" data-matchid="${matchId}" class="btn ${hideBtn}" style="${btnStyle}; margin-top:10px;">${btnText}</button>
                             </div>`;
                     }
                 });;
