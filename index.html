@@ -1194,14 +1194,26 @@
                     let isBye = tA.includes("BYE") || tB.includes("BYE");
 
                     if (isBye) {
-                        // UI Especial para quem joga contra o fantasma (sem placar e já resolvido automático)
+                        // UI Especial + Botão de Repescagem (Visível apenas para o Organizador logado)
+                        let btnRepescagem = isLogged ? `<button onclick="abrirRepescagem(this, ${rodadaIndex}, '${matchId}')" class="btn btn-outline btn-puxar" style="width: 100%; margin-top: 10px; font-size: 0.8rem; padding: 8px; border-color: #ff9800; color: #ff9800;">🔄 Puxar Repescagem</button>` : '';
+
                         html += `
-                            <div class="bracket-match mata-mata-match resolvido" style="background: rgba(12, 232, 126, 0.05); border-left-color: var(--primary);">
+                            <div class="bracket-match mata-mata-match resolvido" id="box-${matchId}" style="background: rgba(12, 232, 126, 0.05); border-left-color: var(--primary);">
                                 <strong class="t-a" style="color: var(--primary-dark);">${tA}</strong>
                                 <div style="margin: 15px 0; color: var(--primary); font-size: 0.95rem; font-weight: bold; background: #0b0c0f; padding: 10px; border-radius: 8px; border: 1px dashed var(--primary);">
                                     🚀 Avança Direto
                                 </div>
                                 <strong class="t-b" style="color: var(--dark);">${tB}</strong>
+                                
+                                <div class="repescagem-area hidden" style="margin-top: 15px; background: var(--white); padding: 10px; border-radius: 8px; border: 1px solid var(--border);">
+                                    <p style="font-size: 0.8rem; color: var(--gray); margin-bottom: 5px;">Selecione a dupla eliminada:</p>
+                                    <select class="form-control select-repescagem" style="margin-bottom: 10px; padding: 5px; font-size: 0.9rem;"></select>
+                                    <div style="display: flex; gap: 5px;">
+                                        <button onclick="confirmarRepescagem(this, ${rodadaIndex}, '${matchId}')" class="btn" style="flex: 1; padding: 5px; font-size: 0.8rem; background: #ff9800; color: #fff !important;">Substituir</button>
+                                        <button onclick="cancelarRepescagem(this)" class="btn btn-outline" style="padding: 5px; font-size: 0.8rem;">❌</button>
+                                    </div>
+                                </div>
+                                ${btnRepescagem}
                             </div>`;
                     } else {
                         // UI Normal para jogos reais (Mantém os inputs e o botão)
@@ -1974,6 +1986,88 @@ function verificarEGerarPodio(fasesArray) {
             renderizarGrupos(torneioAbertoData.sorteados);
             document.getElementById('btnEfetuarTroca').textContent = "Trocar de Grupo";
         });
+
+        // ==========================================
+        // SISTEMA DE REPESCAGEM (LUCKY LOSER)
+        // ==========================================
+        window.abrirRepescagem = function(botao, rodadaIndex, matchId) {
+            const box = document.getElementById('box-' + matchId) || botao.closest('.bracket-match');
+            const area = box.querySelector('.repescagem-area');
+            const select = area.querySelector('select');
+            
+            // 1. Descobrir quem já está na chave do Mata-Mata
+            let timesNoMataMata = [];
+            window.fasesMataMata.forEach(fase => {
+                let jogos = fase.jogos || fase;
+                jogos.forEach(j => {
+                    if (j.timeA && !j.timeA.includes("BYE") && !j.timeA.includes("Aguardando")) timesNoMataMata.push(j.timeA);
+                    if (j.timeB && !j.timeB.includes("BYE") && !j.timeB.includes("Aguardando")) timesNoMataMata.push(j.timeB);
+                });
+            });
+
+            // 2. Filtrar as duplas que foram eliminadas nos grupos
+            let eliminados = [];
+            inscritosAtuais.forEach(insc => {
+                let nomeTime = insc.jogador2 ? `${insc.jogador1} & ${insc.jogador2}` : insc.jogador1;
+                if (!timesNoMataMata.includes(nomeTime)) {
+                    eliminados.push(nomeTime);
+                }
+            });
+
+            // 3. Preencher a lista de opções para escolheres
+            select.innerHTML = '<option value="">-- Escolher Dupla --</option>';
+            if(eliminados.length === 0) {
+                select.innerHTML += '<option disabled>Nenhuma dupla disponível</option>';
+            } else {
+                eliminados.forEach(e => select.innerHTML += `<option value="${e}">${e}</option>`);
+            }
+
+            // 4. Mostrar o painel de troca e esconder o botão
+            area.classList.remove('hidden');
+            botao.classList.add('hidden'); 
+        };
+
+        window.cancelarRepescagem = function(botao) {
+            const box = botao.closest('.bracket-match');
+            box.querySelector('.repescagem-area').classList.add('hidden');
+            box.querySelector('.btn-puxar').classList.remove('hidden');
+        };
+
+        window.confirmarRepescagem = async function(botao, rodadaIndex, matchId) {
+            const box = botao.closest('.bracket-match');
+            const select = box.querySelector('.select-repescagem');
+            const novoTime = select.value;
+
+            if (!novoTime) { alert("Por favor, selecione uma dupla primeiro!"); return; }
+            if (!confirm(`Tem a certeza que deseja substituir o BYE por: ${novoTime}?`)) return;
+
+            botao.textContent = "A processar...";
+            botao.disabled = true;
+
+            try {
+                let rodada = window.fasesMataMata[rodadaIndex].jogos || window.fasesMataMata[rodadaIndex];
+                
+                // Procura o jogo específico e faz a substituição do nome
+                rodada.forEach(jogo => {
+                    let tempId = "MM_" + rodadaIndex + "_" + jogo.timeA.replace(/\s+/g, '') + "_vs_" + jogo.timeB.replace(/\s+/g, '');
+                    if (tempId === matchId) {
+                        if (jogo.timeA.includes("BYE")) jogo.timeA = novoTime;
+                        if (jogo.timeB.includes("BYE")) jogo.timeB = novoTime;
+                    }
+                });
+
+                // Atualiza o Firebase com a nova formação da chave
+                await updateDoc(doc(db, "campeonatos", torneioAbertoId), { fasesMataMata: window.fasesMataMata });
+                
+                // Reconstrói o ecrã instantaneamente
+                renderizarMataMata(window.fasesMataMata, true);
+                
+            } catch (error) {
+                alert("Ocorreu um erro ao aplicar a repescagem.");
+                botao.textContent = "Substituir";
+                botao.disabled = false;
+            }
+        };
 
         
     </script>
